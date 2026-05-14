@@ -31,7 +31,14 @@ const app = express();
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(morgan('short'));
+app.use(require('compression')({ threshold: 1024 }));
+app.use('/api', require('express-rate-limit').rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: parseInt(process.env.RATE_LIMIT_MAX || '1000', 10),
+  standardHeaders: true, legacyHeaders: false,
+  message: { success: false, error: { code: 'RATE_LIMITED', message: 'Too many requests, try again later.' } },
+}));
+app.use(morgan(env.nodeEnv === 'production' ? 'tiny' : 'short'));
 
 // Swagger UI — no auth required
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
@@ -70,11 +77,14 @@ app.use('/api', (_req, res) => {
 app.use(errorHandler);
 
 const server = app.listen(env.port, () => {
-  console.log(`[MISA API] Running on http://localhost:${env.port}`);
-  console.log(`[MISA API] Default DB: ${env.sql.instance} / ${env.sql.database}`);
-  console.log(`[MISA API] Auth mode: ${env.authMode}`);
-  console.log(`[MISA API] API Docs: http://localhost:${env.port}/docs`);
+  console.log(`[MISA API] Worker ${process.pid} on http://localhost:${env.port}`);
+  console.log(`[MISA API] DB: ${env.sql.instance} / ${env.sql.database} | Pool: ${env.sql.poolMax}`);
+  console.log(`[MISA API] Docs: http://localhost:${env.port}/docs`);
 });
+
+// Tune for high concurrency
+server.keepAliveTimeout = 65000;     // > ALB/nginx default 60s
+server.headersTimeout = 66000;       // > keepAliveTimeout
 
 // Graceful shutdown — close all SQL pools
 for (const sig of ['SIGTERM', 'SIGINT'] as const) {

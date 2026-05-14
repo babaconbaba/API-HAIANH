@@ -23,7 +23,7 @@ function buildConfig(instance: string, database: string, auth?: string, username
       connectionString: `Driver={ODBC Driver 17 for SQL Server};Server=${server};${dbPart}Trusted_Connection=yes;TrustServerCertificate=yes;`,
       pool: {
         max: env.sql.poolMax,
-        min: 0,
+        min: env.sql.poolMin,
         idleTimeoutMillis: env.sql.idleTimeout,
       },
       options: {
