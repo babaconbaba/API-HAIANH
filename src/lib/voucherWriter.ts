@@ -53,6 +53,21 @@ export async function createVoucher(
       branchId = r.recordset[0]?.OrganizationUnitID;
     }
 
+    // Auto-fill AccountObject info if ID provided but name/address missing
+    if (b.AccountObjectID && (!b.AccountObjectName || !b.AccountObjectAddress)) {
+      try {
+        const aoReq = new sql.Request(transaction);
+        aoReq.input('aoId', sql.UniqueIdentifier, b.AccountObjectID);
+        const aoResult = await aoReq.query('SELECT AccountObjectName, Address, CompanyTaxCode FROM AccountObject WHERE AccountObjectID = @aoId');
+        if (aoResult.recordset[0]) {
+          const ao = aoResult.recordset[0];
+          if (!b.AccountObjectName) b.AccountObjectName = ao.AccountObjectName;
+          if (!b.AccountObjectAddress) b.AccountObjectAddress = ao.Address;
+          if (!b.CompanyTaxCode) b.CompanyTaxCode = ao.CompanyTaxCode;
+        }
+      } catch {}
+    }
+
     // Build master record — merge user data with required defaults
     const masterData: Record<string, any> = {
       ...b,
@@ -67,9 +82,10 @@ export async function createVoucher(
       InvNo: b.InvNo || refNo,
       BranchID: branchId,
       IsPostedFinance: config.postToGL ? true : false,
-      IsPostedManagement: config.postToGL ? true : false,
+      IsPostedManagement: false,
       DisplayOnBook: b.DisplayOnBook ?? 0,
-      RefOrder: b.RefOrder ?? 0,
+      RefOrder: b.RefOrder || Date.now() % 1000000,
+      ReasonTypeID: b.ReasonTypeID ?? undefined,
       CurrencyID: b.CurrencyID || 'VND',
       ExchangeRate: b.ExchangeRate ?? 1,
       TotalAmount: b.TotalAmount ?? 0,
@@ -108,6 +124,8 @@ export async function createVoucher(
         RefDetailID: detailId,
         RefID: refId,
         SortOrder: d.SortOrder ?? i,
+        // Inherit AccountObjectID from master if detail doesn't specify
+        AccountObjectID: d.AccountObjectID || b.AccountObjectID || undefined,
         Amount: d.Amount ?? 0,
         AmountOC: d.AmountOC ?? d.Amount ?? 0,
         Quantity: d.Quantity ?? 0,
