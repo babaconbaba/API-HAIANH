@@ -59,7 +59,7 @@ router.get('/:id', asyncHandler(async (req, res) => {
         .input('id', sql.UniqueIdentifier, req.params.id)
         .query('SELECT * FROM BudgetDetail WHERE BudgetID = @id ORDER BY SortOrder');
       details = detailResult.recordset;
-    } catch {}
+    } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
 
     res.json({ success: true, data: { ...master.recordset[0], details } });
   } catch (err: any) {
@@ -133,7 +133,7 @@ router.delete('/:id', asyncHandler(async (req, res) => {
     await pool.request()
       .input('id', sql.UniqueIdentifier, req.params.id)
       .query('DELETE FROM BudgetDetail WHERE BudgetID = @id');
-  } catch {}
+  } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
   const result = await pool.request()
     .input('id', sql.UniqueIdentifier, req.params.id)
     .query('DELETE FROM Budget WHERE BudgetID = @id');

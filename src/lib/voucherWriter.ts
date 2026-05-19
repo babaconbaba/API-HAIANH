@@ -69,7 +69,7 @@ export async function createVoucher(
           if (!b.AccountObjectTaxCode && !b.CompanyTaxCode) b.AccountObjectTaxCode = ao.CompanyTaxCode;
           if (!b.AccountObjectContactName) b.AccountObjectContactName = ao.ContactName;
         }
-      } catch {}
+      } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
     }
 
     // Build master record — merge user data with required defaults
@@ -176,7 +176,7 @@ export async function createVoucher(
     await transaction.commit();
     return { RefID: refId, RefNo: refNo };
   } catch (err) {
-    try { await transaction.rollback(); } catch {}
+    try { await transaction.rollback(); } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
     throw err;
   }
 }

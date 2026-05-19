@@ -103,7 +103,7 @@ router.get('/table-info/:table', async (req: Request, res: Response) => {
     try {
       const cnt = await pool.request().query(`SELECT COUNT(*) AS c FROM [${table}]`);
       rowCount = cnt.recordset[0].c;
-    } catch {}
+    } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
 
     res.json({
       success: true,

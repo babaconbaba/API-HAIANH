@@ -25,7 +25,7 @@ router.get('/prepaid-expenses/:id', asyncHandler(async (req, res) => {
     .query('SELECT * FROM PrepaidExpenses WHERE PrepaidExpenseID = @id');
   if (!master.recordset.length) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Not found' } }); return; }
   let details: any[] = [];
-  try { details = (await pool.request().input('id', sql.UniqueIdentifier, req.params.id).query('SELECT * FROM PrepaidExpensesDetail WHERE PrepaidExpenseID = @id')).recordset; } catch {}
+  try { details = (await pool.request().input('id', sql.UniqueIdentifier, req.params.id).query('SELECT * FROM PrepaidExpensesDetail WHERE PrepaidExpenseID = @id')).recordset; } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
   res.json({ success: true, data: { ...master.recordset[0], details } });
 }));
 
@@ -174,7 +174,7 @@ router.get('/purchase-contracts/:id', asyncHandler(async (req, res) => {
   const master = await pool.request().input('id', sql.UniqueIdentifier, req.params.id).query('SELECT * FROM PUContract WHERE RefID = @id');
   if (!master.recordset.length) { res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: 'Not found' } }); return; }
   let details: any[] = [];
-  try { details = (await pool.request().input('id', sql.UniqueIdentifier, req.params.id).query('SELECT * FROM PUContractDetailInventoryItem WHERE RefID = @id')).recordset; } catch {}
+  try { details = (await pool.request().input('id', sql.UniqueIdentifier, req.params.id).query('SELECT * FROM PUContractDetailInventoryItem WHERE RefID = @id')).recordset; } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
   res.json({ success: true, data: { ...master.recordset[0], details } });
 }));
 

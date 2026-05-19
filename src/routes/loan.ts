@@ -55,7 +55,7 @@ router.get('/agreements/:id', asyncHandler(async (req, res) => {
         .input('id', sql.UniqueIdentifier, req.params.id)
         .query('SELECT * FROM LOANAgreementCalendar WHERE LOANAgreementID = @id ORDER BY DueDate');
       calendar = calResult.recordset;
-    } catch {}
+    } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
 
     let payments: any[] = [];
     try {
@@ -63,7 +63,7 @@ router.get('/agreements/:id', asyncHandler(async (req, res) => {
         .input('id', sql.UniqueIdentifier, req.params.id)
         .query('SELECT * FROM LOANAgreementPayment WHERE LOANAgreementID = @id ORDER BY PaymentDate');
       payments = payResult.recordset;
-    } catch {}
+    } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
 
     res.json({ success: true, data: { ...master.recordset[0], calendar, payments } });
   } catch (err: any) {

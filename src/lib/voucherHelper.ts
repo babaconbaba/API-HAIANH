@@ -177,7 +177,7 @@ export async function deleteVoucher(
     await transaction.commit();
     return { success: true };
   } catch (err) {
-    try { await transaction.rollback(); } catch {}
+    try { await transaction.rollback(); } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
     throw err;
   }
 }
