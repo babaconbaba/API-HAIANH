@@ -53,17 +53,21 @@ export async function createVoucher(
       branchId = r.recordset[0]?.OrganizationUnitID;
     }
 
-    // Auto-fill AccountObject info if ID provided but name/address missing
-    if (b.AccountObjectID && (!b.AccountObjectName || !b.AccountObjectAddress)) {
+    // Auto-fill AccountObject info if ID provided
+    if (b.AccountObjectID) {
       try {
         const aoReq = new sql.Request(transaction);
         aoReq.input('aoId', sql.UniqueIdentifier, b.AccountObjectID);
-        const aoResult = await aoReq.query('SELECT AccountObjectName, Address, CompanyTaxCode FROM AccountObject WHERE AccountObjectID = @aoId');
+        const aoResult = await aoReq.query(
+          `SELECT AccountObjectName, Address, CompanyTaxCode, ContactName, Tel
+           FROM AccountObject WHERE AccountObjectID = @aoId`
+        );
         if (aoResult.recordset[0]) {
           const ao = aoResult.recordset[0];
           if (!b.AccountObjectName) b.AccountObjectName = ao.AccountObjectName;
           if (!b.AccountObjectAddress) b.AccountObjectAddress = ao.Address;
-          if (!b.CompanyTaxCode) b.CompanyTaxCode = ao.CompanyTaxCode;
+          if (!b.AccountObjectTaxCode && !b.CompanyTaxCode) b.AccountObjectTaxCode = ao.CompanyTaxCode;
+          if (!b.AccountObjectContactName) b.AccountObjectContactName = ao.ContactName;
         }
       } catch {}
     }
