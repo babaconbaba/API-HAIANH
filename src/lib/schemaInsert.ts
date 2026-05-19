@@ -19,11 +19,11 @@ async function getColumns(tableName: string, instance?: string, database?: strin
   const result = await pool.request()
     .input('tableName', sql.NVarChar, tableName)
     .query(`
-      SELECT c.name, t.name AS typeName, c.is_nullable AS isNullable, c.is_identity AS isIdentity
+      SELECT c.name, t.name AS typeName, c.is_nullable AS isNullable, c.is_identity AS isIdentity, c.is_computed AS isComputed
       FROM sys.columns c
       JOIN sys.objects o ON c.object_id = o.object_id
       JOIN sys.types t ON c.user_type_id = t.user_type_id
-      WHERE o.name = @tableName
+      WHERE o.name = @tableName AND c.is_computed = 0
       ORDER BY c.column_id
     `);
 
