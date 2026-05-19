@@ -40,10 +40,36 @@ app.use('/api', require('express-rate-limit').rateLimit({
 }));
 app.use(morgan(env.nodeEnv === 'production' ? 'tiny' : 'short'));
 
-// Swagger UI — no auth required
+// Swagger UI — custom branding
 app.use('/docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
-  customCss: '.swagger-ui .topbar { display: none }',
-  customSiteTitle: 'MISA SME API Docs',
+  customSiteTitle: 'MISA SME 2026 — API Documentation',
+  customfavIcon: '',
+  customCss: `
+    .swagger-ui .topbar { background: #1a237e; padding: 8px 0; }
+    .swagger-ui .topbar .download-url-wrapper { display: none; }
+    .swagger-ui .topbar::before { content: "MISA SME 2026 API"; color: white; font-size: 20px; font-weight: bold; padding: 0 20px; }
+    .swagger-ui .info { margin: 20px 0; }
+    .swagger-ui .info .title { font-size: 28px; color: #1a237e; }
+    .swagger-ui .info .description p { font-size: 14px; line-height: 1.6; }
+    .swagger-ui .opblock.opblock-get .opblock-summary { border-color: #1976d2; }
+    .swagger-ui .opblock.opblock-post .opblock-summary { border-color: #388e3c; }
+    .swagger-ui .opblock.opblock-put .opblock-summary { border-color: #f57c00; }
+    .swagger-ui .opblock.opblock-delete .opblock-summary { border-color: #d32f2f; }
+    .swagger-ui .btn.authorize { background: #1a237e; border-color: #1a237e; }
+    .swagger-ui .btn.authorize svg { fill: white; }
+    .swagger-ui section.models { border: 1px solid #e0e0e0; border-radius: 8px; }
+    .swagger-ui .model-box { background: #fafafa; }
+  `,
+  swaggerOptions: {
+    persistAuthorization: true,
+    displayRequestDuration: true,
+    filter: true,
+    docExpansion: 'none',
+    defaultModelsExpandDepth: 2,
+    defaultModelExpandDepth: 3,
+    tagsSorter: 'alpha',
+    operationsSorter: 'alpha',
+  },
 }));
 app.get('/swagger.json', (_req, res) => res.json(swaggerSpec));
 

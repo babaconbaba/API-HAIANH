@@ -9,8 +9,8 @@ const paged = [
 const pagedDated = [
   ...paged, { $ref: '#/components/parameters/dateFrom' }, { $ref: '#/components/parameters/dateTo' },
 ];
-const ok = { 200: { description: 'OK' } };
-const created = { 201: { description: 'Created' } };
+const ok = { 200: { description: 'Thành công', content: { 'application/json': { schema: { $ref: '#/components/schemas/SuccessResponse' } } } }, 401: { $ref: '#/components/responses/Unauthorized' }, 500: { $ref: '#/components/responses/ServerError' } };
+const created = { 201: { description: 'Tạo thành công', content: { 'application/json': { schema: { $ref: '#/components/schemas/CreateResponse' } } } }, 422: { $ref: '#/components/responses/ValidationError' }, 401: { $ref: '#/components/responses/Unauthorized' } };
 
 function bodyRef(schemaName: string) {
   return { content: { 'application/json': { schema: { $ref: `#/components/schemas/${schemaName}` } } } };
@@ -38,10 +38,62 @@ const options: swaggerJsdoc.Options = {
     openapi: '3.0.0',
     info: {
       title: 'MISA SME 2026 API',
-      version: '2.0.0',
-      description: 'REST API kết nối trực tiếp database MISA SME 2026.\n\n**Auth**: `Authorization: ApiKey misa-api-key-2026`\n\n**Multi-tenant**: Truyền header `X-SQL-Instance`, `X-SQL-Database`, `X-SQL-Auth`, `X-SQL-Username`, `X-SQL-Password` để kết nối remote DB.',
+      version: '3.0.0',
+      description: `REST API kết nối trực tiếp database MISA SME 2026.
+
+## Tính năng
+- **229 endpoints** — 16 modules kế toán đầy đủ
+- **CRUD + GL Posting** — Tạo chứng từ tự động ghi sổ cái
+- **Multi-tenant** — Kết nối nhiều SQL Server / database qua headers
+- **Auto-fill** — Truyền AccountObjectID tự fill Name, Address, TaxCode
+- **134,924+ chứng từ** đã test trên DB production thật
+
+## Authentication
+\`\`\`
+Authorization: ApiKey misa-api-key-2026
+\`\`\`
+
+## Multi-tenant (Remote SQL)
+| Header | Mô tả |
+|--------|-------|
+| \`X-SQL-Instance\` | SQL Server (VD: \`192.168.1.100\\\\MISASME2026\`) |
+| \`X-SQL-Database\` | Database name |
+| \`X-SQL-Auth\` | \`windows\` hoặc \`sql\` |
+| \`X-SQL-Username\` | Username (cho SQL Auth) |
+| \`X-SQL-Password\` | Password |
+
+## Auto-fill (kế thừa)
+Khi truyền \`AccountObjectID\`, API tự động fill:
+- \`AccountObjectName\` — Tên KH/NCC
+- \`AccountObjectAddress\` — Địa chỉ
+- \`AccountObjectTaxCode\` — Mã số thuế
+- \`AccountObjectContactName\` — Người liên hệ
+- \`detail.AccountObjectID\` — Kế thừa xuống dòng detail
+`,
     },
-    servers: [{ url: '/api', description: 'API Server' }],
+    servers: [{ url: '/api', description: 'MISA SME API Server' }],
+    tags: [
+      { name: 'System', description: 'Hệ thống — health check, danh sách DB, tables, branches' },
+      { name: 'Danh mục', description: 'Khách hàng, NCC, hàng hóa, tài khoản, đơn vị tính, kho...' },
+      { name: 'Tiền mặt', description: 'Phiếu thu (CAReceipt), phiếu chi (CAPayment)' },
+      { name: 'Ngân hàng', description: 'Thu tiền gửi (BADeposit), ủy nhiệm chi (BAWithDraw), chuyển tiền NB' },
+      { name: 'Sổ cái', description: 'General Ledger, CT nghiệp vụ khác (GLVoucher)' },
+      { name: 'Bán hàng', description: 'Báo giá → Đơn hàng → Bán hàng → Hóa đơn → Giảm giá → Trả lại' },
+      { name: 'Mua hàng', description: 'Đơn mua → Mua hàng → Mua DV → Hóa đơn → Giảm giá → Trả lại' },
+      { name: 'Kho', description: 'Nhập kho, xuất kho, chuyển kho, lắp ráp/tháo dỡ' },
+      { name: 'TSCĐ', description: 'Tài sản cố định — ghi tăng, khấu hao, điều chuyển, ghi giảm' },
+      { name: 'CCDC', description: 'Công cụ dụng cụ — ghi tăng, phân bổ, điều chuyển, ghi giảm' },
+      { name: 'Tiền lương', description: 'Bảng lương, chấm công, BHXH, thuế TNCN' },
+      { name: 'Thuế', description: 'VAT đầu vào/ra, thuế TNDN, tổng hợp thuế' },
+      { name: 'Báo cáo', description: 'CĐPS, KQKD, CĐKT, lưu chuyển tiền, công nợ, tồn kho, dashboard' },
+      { name: 'Hợp đồng', description: 'Hợp đồng mua bán' },
+      { name: 'Ngân sách', description: 'Ngân sách và so sánh thực tế' },
+      { name: 'Khế ước vay', description: 'Hợp đồng vay, khế ước, hồ sơ vay' },
+      { name: 'Giá thành', description: 'Kỳ tính giá thành, phân bổ chi phí, nghiệm thu' },
+      { name: 'Kiểm kê', description: 'Kiểm kê quỹ, kho, TSCĐ, CCDC' },
+      { name: 'Tổng hợp', description: 'Chi phí trả trước, công trình, khoản mục CP, ngân hàng, tỷ giá...' },
+      { name: 'Sổ phụ', description: 'Sổ kho, sổ TSCĐ, sổ bán hàng, sổ mua hàng' },
+    ],
     components: {
       securitySchemes: {
         ApiKey: { type: 'apiKey', in: 'header', name: 'Authorization', description: 'ApiKey misa-api-key-2026' },
@@ -55,7 +107,58 @@ const options: swaggerJsdoc.Options = {
         dateFrom: { in: 'query', name: 'dateFrom', schema: { type: 'string', format: 'date' } },
         dateTo: { in: 'query', name: 'dateTo', schema: { type: 'string', format: 'date' } },
       },
+      responses: {
+        Unauthorized: { description: 'Chưa xác thực', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { success: false, error: { code: 'AUTH_REQUIRED', message: 'Authorization required' } } } } },
+        ValidationError: { description: 'Lỗi validation', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { success: false, error: { code: 'VALIDATION_ERROR', message: "Sum of detail amounts (500000) does not match TotalAmount (1000000)." } } } } },
+        NotFound: { description: 'Không tìm thấy', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { success: false, error: { code: 'NOT_FOUND', message: 'SAVoucher not found' } } } } },
+        ServerError: { description: 'Lỗi server', content: { 'application/json': { schema: { $ref: '#/components/schemas/ErrorResponse' }, example: { success: false, error: { code: 'INTERNAL_ERROR', message: 'An internal error occurred.' } } } } },
+      },
       schemas: {
+        // ── Response Schemas ──
+        SuccessResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            data: { type: 'object', description: 'Dữ liệu trả về (object hoặc array)' },
+            pagination: {
+              type: 'object',
+              properties: {
+                page: { type: 'integer', example: 1 },
+                pageSize: { type: 'integer', example: 20 },
+                totalCount: { type: 'integer', example: 1636 },
+                totalPages: { type: 'integer', example: 82 },
+              },
+            },
+          },
+        },
+        CreateResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: true },
+            data: {
+              type: 'object',
+              properties: {
+                RefID: { type: 'string', format: 'uuid', example: 'A637E8C3-4E18-493C-835C-A967F4CD19E4' },
+                RefNo: { type: 'string', example: 'PT00001' },
+              },
+            },
+          },
+        },
+        ErrorResponse: {
+          type: 'object',
+          properties: {
+            success: { type: 'boolean', example: false },
+            error: {
+              type: 'object',
+              properties: {
+                code: { type: 'string', enum: ['AUTH_REQUIRED','AUTH_INVALID','NOT_FOUND','VALIDATION_ERROR','DUPLICATE','CONSTRAINT_ERROR','MISSING_DATABASE','MISSING_CREDENTIALS','SQL_AUTH_FAILED','SQL_CONNECTION_FAILED','RATE_LIMITED','INTERNAL_ERROR'] },
+                message: { type: 'string' },
+                details: { type: 'object', description: 'Chi tiết lỗi (development mode)' },
+              },
+            },
+          },
+        },
+
         // ── Voucher (chứng từ chung) ──
         VoucherCreate: {
           type: 'object',
