@@ -131,16 +131,14 @@ router.get('/tables-with-data', async (req: Request, res: Response) => {
   try {
     const pool = await getPoolFromReq(req);
     const result = await pool.request().query(`
-      SELECT t.name AS TABLE_NAME,
-             SUM(p.rows) AS RowCount,
-             (SELECT COUNT(*) FROM sys.columns c WHERE c.object_id = t.object_id) AS ColumnCount
+      SELECT t.name, SUM(p.[rows]) AS [cnt]
       FROM sys.tables t
-      JOIN sys.partitions p ON t.object_id = p.object_id AND p.index_id IN (0,1)
-      GROUP BY t.name, t.object_id
-      HAVING SUM(p.rows) > 0
-      ORDER BY SUM(p.rows) DESC
+      INNER JOIN sys.partitions p ON t.object_id = p.object_id AND p.index_id IN (0,1)
+      GROUP BY t.name
+      HAVING SUM(p.[rows]) > 0
+      ORDER BY SUM(p.[rows]) DESC
     `);
-    res.json({ success: true, data: result.recordset, count: result.recordset.length });
+    res.json({ success: true, data: result.recordset.map((r: any) => ({ table: r.name, rows: r.cnt })), count: result.recordset.length });
   } catch (err: any) {
     res.status(500).json({ success: false, error: { code: 'QUERY_ERROR', message: err.message } });
   }

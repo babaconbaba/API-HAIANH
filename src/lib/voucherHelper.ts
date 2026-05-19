@@ -73,6 +73,28 @@ export async function listVouchers(
 }
 
 /** Get voucher by RefID with detail lines */
+// Sub-detail table map — key: masterTable, value: extra tables to query
+const SUB_DETAIL_TABLES: Record<string, string[]> = {
+  CAReceipt: ['CAReceiptPaymentList'],
+  CAPayment: ['CAPaymentDetailTax', 'CAPaymentDetailSalary', 'CAPaymentDetailPersonalIncomeTax', 'CAPaymentDetailImportVAT'],
+  BADeposit: ['BADepositWithdrawList'],
+  BAWithDraw: ['BAWithdrawDetailTax', 'BAWithDrawDetailSalary', 'BAWithdrawDetailPersonalIncomeTax', 'BAWithdrawDetailImportVAT'],
+  GLVoucher: ['GLVoucherDetailTax', 'GLVoucherDetailExpenses', 'GLVoucherDetailExpensesAllocation', 'GLVoucherDetailRevenue', 'GLVoucherDetailRevenueAllocation', 'GLVoucherDetailDebtPayment', 'GLVoucherDetailAdvancedPayment', 'GLVoucherDetailForeignExchange'],
+  SAVoucher: ['SaleOutwardReference', 'SaleOutwardReferenceDetail'],
+  SAReturn: ['SAReturnInwardReferenceDetail'],
+  PUVoucher: ['PUVoucherDetailCost'],
+  FixedAsset: ['FixedAssetDetail', 'FixedAssetDetailAccessory', 'FixedAssetDetailAllocation', 'FixedAssetDetailSource'],
+  FADepreciation: ['FADepreciationDetailAllocation', 'FADepreciationDetailPost'],
+  FADecrement: ['FADecrementDetailPost'],
+  FAAdjustment: ['FAAdjustmentDetailPost'],
+  SUIncrement: ['SUIncrementDetail', 'SUIncrementDetailAllocation', 'SUIncrementDetailDepartment', 'SUIncrementDetailSource'],
+  SUAllocation: ['SUAllocationDetailExpense', 'SUAllocationDetailPost', 'SUAllocationDetailTable'],
+  SUDecrement: ['SUDecrementDetail'],
+  Contract: ['ContractDetailInventoryItem', 'ContractDetailPayment', 'ContractDetailPaymentReference', 'ContractDetailExpense', 'ContractDetailRevenue', 'ContractDetailContact'],
+  PASalarySheet: ['PASalaryExpenseDetail'],
+  PASalaryExpense: ['PASalaryExpenseAllocationDetail'],
+};
+
 export async function getVoucherWithDetails(
   req: Request,
   masterTable: string,
@@ -94,13 +116,34 @@ export async function getVoucherWithDetails(
     .input('refId', sql.UniqueIdentifier, id)
     .query(`SELECT * FROM ${detailTable} WHERE RefID = @refId ORDER BY SortOrder`);
 
-  return {
-    success: true,
-    data: {
-      ...masterResult.recordset[0],
-      details: detailResult.recordset,
-    },
+  const data: Record<string, any> = {
+    ...masterResult.recordset[0],
+    details: detailResult.recordset,
   };
+
+  // Query sub-detail tables
+  const subTables = SUB_DETAIL_TABLES[masterTable] || [];
+  for (const subTable of subTables) {
+    try {
+      const subResult = await pool.request()
+        .input('refId', sql.UniqueIdentifier, id)
+        .query(`SELECT * FROM [${subTable}] WHERE RefID = @refId`);
+      if (subResult.recordset.length > 0) {
+        // camelCase key: "CAPaymentDetailTax" → "detailTax", "FixedAssetDetailAllocation" → "detailAllocation"
+        const key = subTable
+          .replace(masterTable, '')
+          .replace(/^Detail/, 'detail')
+          .replace(/^_/, '')
+          || subTable;
+        const camelKey = key.charAt(0).toLowerCase() + key.slice(1);
+        data[camelKey] = subResult.recordset;
+      }
+    } catch {
+      // Table doesn't exist in this DB — skip silently
+    }
+  }
+
+  return { success: true, data };
 }
 
 /** Delete voucher: unpost GL + delete details + delete master */
