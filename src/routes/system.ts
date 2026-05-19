@@ -77,6 +77,75 @@ router.get('/tables', async (req: Request, res: Response) => {
   }
 });
 
+// ─── Table info — xem columns + row count ───
+
+router.get('/table-info/:table', async (req: Request, res: Response) => {
+  try {
+    const table = req.params.table as string;
+    const pool = await getPoolFromReq(req);
+    const request = pool.request();
+    request.input('table', sql.NVarChar, table);
+
+    // Columns
+    const cols = await request.query(`
+      SELECT c.name, t.name AS type, c.max_length, c.is_nullable, c.is_identity, c.is_computed
+      FROM sys.columns c
+      JOIN sys.objects o ON c.object_id = o.object_id
+      JOIN sys.types t ON c.user_type_id = t.user_type_id
+      WHERE o.name = @table
+      ORDER BY c.column_id
+    `);
+
+    // Row count
+    const countR = pool.request();
+    countR.input('table', sql.NVarChar, table);
+    let rowCount = 0;
+    try {
+      const cnt = await pool.request().query(`SELECT COUNT(*) AS c FROM [${table}]`);
+      rowCount = cnt.recordset[0].c;
+    } catch {}
+
+    res.json({
+      success: true,
+      data: {
+        table,
+        rowCount,
+        columns: cols.recordset.map((c: any) => ({
+          name: c.name,
+          type: c.type,
+          maxLength: c.max_length,
+          nullable: !!c.is_nullable,
+          identity: !!c.is_identity,
+          computed: !!c.is_computed,
+        })),
+      },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { code: 'QUERY_ERROR', message: err.message } });
+  }
+});
+
+// ─── Tables with data — chỉ tables có rows ───
+
+router.get('/tables-with-data', async (req: Request, res: Response) => {
+  try {
+    const pool = await getPoolFromReq(req);
+    const result = await pool.request().query(`
+      SELECT t.name AS TABLE_NAME,
+             SUM(p.rows) AS RowCount,
+             (SELECT COUNT(*) FROM sys.columns c WHERE c.object_id = t.object_id) AS ColumnCount
+      FROM sys.tables t
+      JOIN sys.partitions p ON t.object_id = p.object_id AND p.index_id IN (0,1)
+      GROUP BY t.name, t.object_id
+      HAVING SUM(p.rows) > 0
+      ORDER BY SUM(p.rows) DESC
+    `);
+    res.json({ success: true, data: result.recordset, count: result.recordset.length });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { code: 'QUERY_ERROR', message: err.message } });
+  }
+});
+
 // ─── Generic table query — cho web app tích hợp ───
 
 const ALLOWED_TABLES = new Set([
