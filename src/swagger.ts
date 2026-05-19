@@ -42,11 +42,13 @@ const options: swaggerJsdoc.Options = {
       description: `REST API kết nối trực tiếp database MISA SME 2026.
 
 ## Tính năng
-- **229 endpoints** — 16 modules kế toán đầy đủ
+- **232 endpoints** — 16 modules kế toán đầy đủ
 - **CRUD + GL Posting** — Tạo chứng từ tự động ghi sổ cái
+- **Sub-details tự động** — GET detail trả kèm tất cả sub-tables (tax, cost, allocation...)
 - **Multi-tenant** — Kết nối nhiều SQL Server / database qua headers
-- **Auto-fill** — Truyền AccountObjectID tự fill Name, Address, TaxCode
-- **134,924+ chứng từ** đã test trên DB production thật
+- **Auto-fill** — Truyền AccountObjectID tự fill Name, Address, TaxCode, ContactName
+- **Generic query** — Đọc bất kỳ 150+ tables qua \`/system/query/:table\`
+- **134,924+ chứng từ** đã test trên DB production thật (HAG2026)
 
 ## Authentication
 \`\`\`
