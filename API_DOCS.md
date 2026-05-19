@@ -256,6 +256,53 @@ Khi truyền `AccountObjectID`, API tự động fill:
 1. Unpost GL → Delete details → Delete master
 2. Atomic transaction, rollback nếu lỗi
 
+### Sub-details (tự động trả kèm)
+
+GET detail voucher **tự động trả tất cả sub-detail tables** liên quan. Không cần query riêng.
+
+```json
+// GET /api/journal/cash/payments/:refId
+{
+  "data": {
+    "RefID": "...",
+    "RefNoFinance": "VPPC00962",
+    "details": [...],           // CAPaymentDetail
+    "detailTax": [...],         // CAPaymentDetailTax — tự động
+    "detailSalary": [...]       // CAPaymentDetailSalary — tự động
+  }
+}
+```
+
+| Voucher | Sub-details tự động |
+|---------|-------------------|
+| Phiếu chi | `detailTax`, `detailSalary`, `detailPersonalIncomeTax`, `detailImportVAT` |
+| Ủy nhiệm chi | `detailTax`, `detailSalary`, `detailPersonalIncomeTax`, `detailImportVAT` |
+| CT NV khác | `detailTax`, `detailExpenses`, `detailExpensesAllocation`, `detailRevenue`, `detailRevenueAllocation`, `detailDebtPayment`, `detailAdvancedPayment`, `detailForeignExchange` |
+| Bán hàng | `saleOutwardReference`, `saleOutwardReferenceDetail` |
+| Mua hàng | `detailCost` |
+| Trả lại BH | `sAReturnInwardReferenceDetail` |
+| TSCĐ | `detail`, `detailAccessory`, `detailAllocation`, `detailSource` |
+| Khấu hao | `detailAllocation`, `detailPost` |
+| CCDC | `detail`, `detailAllocation`, `detailDepartment`, `detailSource` |
+| Phân bổ CCDC | `detailExpense`, `detailPost`, `detailTable` |
+| Hợp đồng | `detailInventoryItem`, `detailPayment`, `detailExpense`, `detailRevenue`, `detailContact` |
+
+> Tables không tồn tại trong DB → skip tự động, không lỗi.
+
+### System endpoints bổ sung
+
+```bash
+# Xem tables nào có data (sorted by row count)
+GET /api/system/tables-with-data
+
+# Xem columns + row count của 1 table
+GET /api/system/table-info/CAReceipt
+
+# Query trực tiếp bất kỳ table (150+ whitelisted)
+GET /api/system/query/GeneralLedger?pageSize=100
+GET /api/system/query/CAPaymentDetailTax?refId=xxx
+```
+
 ---
 
 ## Ví dụ tích hợp
@@ -386,7 +433,7 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 
 ## Endpoints (229 total)
 
-### 1. System — `/api/system` (6)
+### 1. System — `/api/system` (8)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -395,7 +442,9 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 | GET | `/branches` | Chi nhánh / phòng ban |
 | GET | `/databases` | Danh sách databases trên SQL instance |
 | GET | `/tables` | Danh sách tables trong database |
-| GET | `/query/:table` | **Query bất kỳ table** (150+ whitelisted) — cho web app |
+| GET | `/tables-with-data` | Tables có data (sorted by row count) |
+| GET | `/table-info/:table` | Column info + row count |
+| GET | `/query/:table` | **Query bất kỳ table** (150+ whitelisted) |
 
 #### Generic Query — `/api/system/query/:table`
 
@@ -654,7 +703,7 @@ GET /api/system/query/PUVoucherDetailCost?refId=xxx
 
 | # | Module | Prefix | Endpoints |
 |---|--------|--------|-----------|
-| 1 | System | `/api/system` | 6 |
+| 1 | System | `/api/system` | 8 |
 | 2 | Dictionary | `/api/dictionary` | 19 |
 | 3 | Journal | `/api/journal` | 26 |
 | 4 | Sales | `/api/sales` | 24 |
@@ -670,7 +719,7 @@ GET /api/system/query/PUVoucherDetailCost?refId=xxx
 | 14 | General | `/api/general` | 28 |
 | 15 | Costing | `/api/costing` | 14 |
 | 16 | Audit | `/api/audit` | 8 |
-| | **TỔNG** | | **230** |
+| | **TỔNG** | | **232** |
 
 ---
 
