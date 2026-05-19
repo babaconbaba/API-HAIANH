@@ -504,6 +504,7 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
       '/system/ref-types': { get: { tags: ['System'], summary: 'Danh sách RefType', responses: ok } },
       '/system/databases': { get: { tags: ['System'], summary: 'Danh sách databases', responses: ok } },
       '/system/tables': { get: { tags: ['System'], summary: 'Danh sách tables trong DB', responses: ok } },
+      '/system/query/{table}': { get: { tags: ['System'], summary: 'Query bất kỳ table nào (150+ whitelisted)', description: 'Đọc data từ bất kỳ table được phép — dùng cho web app tích hợp.\n\nVí dụ: `/system/query/CAPaymentDetailTax?refId=xxx`, `/system/query/GeneralLedger?pageSize=100`\n\n**150+ tables** bao gồm: tất cả master, detail, sub-detail, ledger tables.', parameters: [{ in: 'path', name: 'table', required: true, schema: { type: 'string' }, description: 'Tên table (VD: CAReceiptDetail, FixedAssetDetailAllocation, GeneralLedger)' }, { in: 'query', name: 'refId', schema: { type: 'string', format: 'uuid' }, description: 'Filter theo RefID' }, { $ref: '#/components/parameters/page' }, { $ref: '#/components/parameters/pageSize' }], responses: ok } },
 
       // ── Dictionary ──
       '/dictionary/account-objects': {

@@ -386,7 +386,7 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 
 ## Endpoints (229 total)
 
-### 1. System — `/api/system` (5)
+### 1. System — `/api/system` (6)
 
 | Method | Endpoint | Mô tả |
 |--------|----------|-------|
@@ -395,6 +395,42 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 | GET | `/branches` | Chi nhánh / phòng ban |
 | GET | `/databases` | Danh sách databases trên SQL instance |
 | GET | `/tables` | Danh sách tables trong database |
+| GET | `/query/:table` | **Query bất kỳ table** (150+ whitelisted) — cho web app |
+
+#### Generic Query — `/api/system/query/:table`
+
+Đọc data từ bất kỳ table nào trong 150+ tables được phép. Dùng cho web app tích hợp.
+
+**Params**: `?page=`, `?pageSize=` (max 500), `?refId=` (filter theo RefID)
+
+```bash
+# Đọc chi tiết thuế trên phiếu chi
+GET /api/system/query/CAPaymentDetailTax?refId=xxx
+
+# Đọc phân bổ TSCĐ theo phòng ban
+GET /api/system/query/FixedAssetDetailAllocation?refId=xxx
+
+# Đọc chi tiết CCDC phân bổ
+GET /api/system/query/SUIncrementDetailDepartment?refId=xxx
+
+# Đọc sổ cái (92 fields)
+GET /api/system/query/GeneralLedger?pageSize=100
+
+# Đọc chi phí hợp đồng
+GET /api/system/query/ContractDetailExpense?refId=xxx
+
+# Đọc chi tiết giá vốn mua hàng
+GET /api/system/query/PUVoucherDetailCost?refId=xxx
+```
+
+**150+ tables bao gồm**:
+- Tất cả master tables (CAReceipt, SAVoucher, PUVoucher, INInward...)
+- Tất cả detail tables (CAReceiptDetail, SAVoucherDetail...)
+- Sub-detail tables (CAPaymentDetailTax, GLVoucherDetailExpenses, FixedAssetDetailAllocation...)
+- Ledger tables (GeneralLedger, InventoryLedger, SaleLedger, TaxLedger...)
+- Dictionary sub-tables (AccountObjectBankAccount, InventoryItemDetailNorm...)
+
+**Blocked**: System tables (MSC_*, SYS*, Import*) → trả 400 INVALID_TABLE
 
 ### 2. Dictionary — `/api/dictionary` (19)
 
@@ -618,7 +654,7 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 
 | # | Module | Prefix | Endpoints |
 |---|--------|--------|-----------|
-| 1 | System | `/api/system` | 5 |
+| 1 | System | `/api/system` | 6 |
 | 2 | Dictionary | `/api/dictionary` | 19 |
 | 3 | Journal | `/api/journal` | 26 |
 | 4 | Sales | `/api/sales` | 24 |
@@ -634,7 +670,7 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 | 14 | General | `/api/general` | 28 |
 | 15 | Costing | `/api/costing` | 14 |
 | 16 | Audit | `/api/audit` | 8 |
-| | **TỔNG** | | **229** |
+| | **TỔNG** | | **230** |
 
 ---
 
