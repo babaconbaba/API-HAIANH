@@ -77,4 +77,110 @@ router.get('/tables', async (req: Request, res: Response) => {
   }
 });
 
+// ─── Generic table query — cho web app tích hợp ───
+
+const ALLOWED_TABLES = new Set([
+  // Detail/sub-detail tables
+  'CAReceiptDetail','CAPaymentDetail','CAPaymentDetailTax','CAPaymentDetailSalary',
+  'BADepositDetail','BAWithDrawDetail','BAWithdrawDetailTax','BAWithDrawDetailSalary',
+  'BAInternalTransferDetail','BADepositWithdrawList',
+  'GLVoucherDetail','GLVoucherDetailTax','GLVoucherDetailExpenses','GLVoucherDetailExpensesAllocation',
+  'GLVoucherDetailRevenue','GLVoucherDetailDebtPayment','GLVoucherDetailAdvancedPayment',
+  'GLVoucherDetailForeignExchange','GLVoucherCrossEntryDetail',
+  'SAVoucherDetail','SAOrderDetail','SAReturnDetail','SAInvoiceDetail','SAQuoteDetail','SADiscountDetail',
+  'SAReturnInwardReferenceDetail','SaleOutwardReference','SaleOutwardReferenceDetail',
+  'PUVoucherDetail','PUVoucherDetailCost','PUOrderDetail','PUReturnDetail','PUServiceDetail',
+  'PUInvoiceDetail','PUDiscountDetail','PUContractDetailInventoryItem',
+  'INInwardDetail','INOutwardDetail','INTransferDetail','INAssemblyDisassemblyDetail',
+  'INInventoryBook','INInventoryBookDetail','INSerialNumber',
+  'FixedAssetDetail','FixedAssetDetailAccessory','FixedAssetDetailAllocation',
+  'FixedAssetDetailBoardDelivery','FixedAssetDetailSource',
+  'FADepreciationDetail','FADepreciationDetailAllocation','FADepreciationDetailPost',
+  'FADecrementDetail','FADecrementDetailPost','FAAdjustmentDetail','FAAdjustmentDetailPost',
+  'FATransferDetail',
+  'SUIncrementDetail','SUIncrementDetailAllocation','SUIncrementDetailDepartment','SUIncrementDetailSource',
+  'SUAllocationDetail','SUAllocationDetailExpense','SUAllocationDetailPost','SUAllocationDetailTable',
+  'SUDecrementDetail','SUTransferDetail','SUAdjustmentDetail',
+  'PASalarySheetDetail','PASalaryExpenseDetail','PASalaryExpenseAllocationDetail',
+  'PATimeSheetDetail','PATimeSheetSummaryDetail',
+  'ContractDetail','ContractDetailInventoryItem','ContractDetailPayment','ContractDetailExpense',
+  'ContractDetailRevenue','ContractDetailContact',
+  'BudgetDetail',
+  'CAAuditDetail','INAuditDetail','FAAuditDetail','SUAuditDetail',
+  'JCPeriodDetail','JCAllocationExpenseDetail','JCAllocationExpenseDetailTable',
+  'JCExpenseTranferDetail','JCAcceptedDetail','JCUncompleteDetail','JCOPNDetail',
+  'LOANAgreementCalendar','LOANAgreementPayment','LOANAgreementInterestRate','LOANAgreementAsset',
+  'DebtListDetail','PrepaidExpensesDetail','PrepaidExpensesDetailSource',
+  'PreReceiptRevenueDetail','PreReceiptRevenueDetailSource',
+  'OpeningAccountEntryDetail','OpeningAccountEntryDetailInvoice','OpeningInventoryEntry',
+  'INProductionOrderDetail','INProductionOrderProduct',
+  // Ledger/log tables
+  'GeneralLedger','InventoryLedger','FixedAssetLedger','SaleLedger','PurchaseLedger',
+  'SupplyLedger','TaxLedger','AccountObjectLedger',
+  // Dictionary sub-tables
+  'AccountObjectBankAccount','AccountObjectGroup','AccountObjectBelongToGroup',
+  'InventoryItemDetailDiscount','InventoryItemDetailNorm','InventoryItemUnitConvert',
+  'ProjectWorkNorm','ProjectWorkEstimate','ListItem',
+  'Bank','BankAccount','CCY','CCYDetailExchangeRate','PaymentTerm','National',
+  'DebtAgreement','DebtPeriod','DebtList',
+  // Master tables (read-only via this endpoint)
+  'CAReceipt','CAPayment','BADeposit','BAWithDraw','BAInternalTransfer',
+  'GLVoucher','SAVoucher','SAOrder','SAReturn','SAInvoice','SAQuote','SADiscount',
+  'PUVoucher','PUOrder','PUReturn','PUService','PUInvoice','PUDiscount','PUContract',
+  'INInward','INOutward','INTransfer','INAssemblyDisassembly','INProductionOrder',
+  'FixedAsset','FixedAssetCategory','FADepreciation','FADecrement','FAAdjustment','FATransfer',
+  'SUIncrement','SUAllocation','SUDecrement','SUTransfer','SUAdjustment','SupplyCategory',
+  'PASalarySheet','PASalaryExpense','PATimeSheet','PATimeSheetSummary','PayRoll',
+  'Contract','Budget','LOANAgreement','LoanProfile',
+  'PrepaidExpenses','PreReceiptRevenue','Job','ProjectWork','ExpenseItem','BudgetItem',
+  'CAAudit','INAudit','FAAudit','SUAudit',
+  'JCPeriod','JCOPN','JCCostVoucher','JCAllocationExpense','JCAllocationQuantum',
+  'JCExpenseTranfer','JCAccepted','JCUncomplete',
+  'Account','AccountObject','InventoryItem','InventoryItemCategory',
+  'OrganizationUnit','Stock','Unit','Location',
+  'SYSRefType','SYSAutoID',
+]);
+
+router.get('/query/:table', async (req: Request, res: Response) => {
+  try {
+    const table = req.params.table as string;
+    if (!ALLOWED_TABLES.has(table)) {
+      res.status(400).json({ success: false, error: { code: 'INVALID_TABLE', message: `Table '${table}' is not allowed. Use /api/system/tables to see available tables.` } });
+      return;
+    }
+
+    const pool = await getPoolFromReq(req);
+    const page = Math.max(1, parseInt(req.query.page as string) || 1);
+    const pageSize = Math.min(500, Math.max(1, parseInt(req.query.pageSize as string) || 50));
+    const offset = (page - 1) * pageSize;
+    const refId = req.query.refId as string;
+    const where = refId ? 'WHERE RefID = @refId' : '';
+
+    const request = pool.request();
+    request.input('offset', sql.Int, offset);
+    request.input('pageSize', sql.Int, pageSize);
+    if (refId) request.input('refId', sql.UniqueIdentifier, refId);
+
+    const countResult = await request.query(`SELECT COUNT(*) AS total FROM [${table}] ${where}`);
+    const total = countResult.recordset[0].total;
+
+    const request2 = pool.request();
+    request2.input('offset', sql.Int, offset);
+    request2.input('pageSize', sql.Int, pageSize);
+    if (refId) request2.input('refId', sql.UniqueIdentifier, refId);
+
+    const result = await request2.query(
+      `SELECT * FROM [${table}] ${where} ORDER BY 1 OFFSET @offset ROWS FETCH NEXT @pageSize ROWS ONLY`
+    );
+
+    res.json({
+      success: true,
+      data: result.recordset,
+      pagination: { page, pageSize, totalCount: total, totalPages: Math.ceil(total / pageSize) },
+    });
+  } catch (err: any) {
+    res.status(500).json({ success: false, error: { code: 'QUERY_ERROR', message: err.message } });
+  }
+});
+
 export default router;
