@@ -1,4 +1,4 @@
-import sql from 'mssql/msnodesqlv8';
+import sql from 'mssql';
 import { getPool } from '../config/database';
 
 interface ColumnInfo {

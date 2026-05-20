@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import sql from 'mssql/msnodesqlv8';
+import sql from 'mssql';
 import { getPool, getPoolFromReq } from '../config/database';
 import { generateGUID } from './guid';
 import { generateRefNo } from './autoNumber';

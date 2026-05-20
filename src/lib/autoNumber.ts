@@ -1,4 +1,4 @@
-import sql from 'mssql/msnodesqlv8';
+import sql from 'mssql';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

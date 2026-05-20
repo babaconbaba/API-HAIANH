@@ -1,4 +1,4 @@
-import sql from 'mssql/msnodesqlv8';
+import sql from 'mssql';
 import { insertRow } from './schemaInsert';
 
 export interface GLEntry {

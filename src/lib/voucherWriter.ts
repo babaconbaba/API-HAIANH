@@ -1,4 +1,4 @@
-import sql from 'mssql/msnodesqlv8';
+import sql from 'mssql';
 import { Request } from 'express';
 import { getPoolFromReq } from '../config/database';
 import { generateGUID } from './guid';
