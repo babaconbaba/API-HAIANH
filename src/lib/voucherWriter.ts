@@ -163,6 +163,18 @@ export async function createVoucher(
 
       await insertRow(transaction, config.detailTable, detailData, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
 
+      // Insert CustomFieldLedger — MISA requires this row per detail line
+      try {
+        await insertRow(transaction, 'CustomFieldLedger', {
+          RefDetailID: detailId,
+          RefID: refId,
+          IsPostToManagementBook: false,
+          BranchID: branchId,
+          PostedDate: postedDate,
+          IsUpdateRedundant: true,
+        }, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
+      } catch (e: any) { console.warn('[WARN] CustomFieldLedger:', e.message?.substring(0, 80)); }
+
       if (config.postToGL && (d.DebitAccount || d.CreditAccount)) {
         glEntries.push({
           refDetailId: detailId,
