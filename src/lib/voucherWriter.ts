@@ -85,7 +85,7 @@ export async function createVoucher(
       InvDate: b.InvDate ? new Date(b.InvDate) : refDate,
       RefNo: refNo,
       RefNoFinance: refNo,
-      RefNoManagement: refNo,
+      RefNoManagement: (b.DisplayOnBook === 1 || b.DisplayOnBook === 2) ? refNo : undefined,
       InvNo: b.InvNo || refNo,
       BranchID: branchId,
       IsPostedFinance: config.postToGL ? true : false,
