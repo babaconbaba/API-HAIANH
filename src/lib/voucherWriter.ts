@@ -62,11 +62,12 @@ export async function createVoucher(
         const aoReq = new sql.Request(transaction);
         aoReq.input('aoId', sql.UniqueIdentifier, b.AccountObjectID);
         const aoResult = await aoReq.query(
-          `SELECT AccountObjectName, Address, CompanyTaxCode, ContactName, Tel
+          `SELECT AccountObjectCode, AccountObjectName, Address, CompanyTaxCode, ContactName, Tel
            FROM AccountObject WHERE AccountObjectID = @aoId`
         );
         if (aoResult.recordset[0]) {
           const ao = aoResult.recordset[0];
+          if (!b.AccountObjectCode) b.AccountObjectCode = ao.AccountObjectCode;
           if (!b.AccountObjectName) b.AccountObjectName = ao.AccountObjectName;
           if (!b.AccountObjectAddress) b.AccountObjectAddress = ao.Address;
           if (!b.AccountObjectTaxCode && !b.CompanyTaxCode) b.AccountObjectTaxCode = ao.CompanyTaxCode;

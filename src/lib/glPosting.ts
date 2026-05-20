@@ -51,6 +51,29 @@ export async function postToGeneralLedger(
   delReq.input('refId', sql.UniqueIdentifier, header.refId);
   await delReq.query('DELETE FROM GeneralLedger WHERE RefID = @refId');
 
+  // Lookup RefTypeName
+  let refTypeName: string | null = null;
+  try {
+    const rtReq = new sql.Request(transaction);
+    rtReq.input('rt', sql.Int, header.refType);
+    const rtResult = await rtReq.query("SELECT RefTypeName FROM SYSRefType WHERE RefType = @rt");
+    refTypeName = rtResult.recordset[0]?.RefTypeName || null;
+  } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
+
+  // Cache account names
+  const accountNames: Record<string, string> = {};
+  async function getAccountName(accNo: string): Promise<string | null> {
+    if (!accNo) return null;
+    if (accountNames[accNo]) return accountNames[accNo];
+    try {
+      const req = new sql.Request(transaction);
+      req.input('acc', sql.NVarChar, accNo);
+      const r = await req.query("SELECT AccountName FROM Account WHERE AccountNumber = @acc");
+      accountNames[accNo] = r.recordset[0]?.AccountName || null;
+    } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
+    return accountNames[accNo] || null;
+  }
+
   let posted = 0;
 
   for (const entry of entries) {
@@ -74,6 +97,7 @@ export async function postToGeneralLedger(
       MainConvertRate: 1,
       EntryType: 0,
       RefOrder: header.refOrder,
+      RefTypeName: refTypeName,
       // Pass through from entry
       AccountObjectID: entry.accountObjectId || undefined,
       AccountObjectName: entry.accountObjectName || undefined,
@@ -90,6 +114,7 @@ export async function postToGeneralLedger(
       await insertRow(transaction, 'GeneralLedger', {
         ...baseData,
         AccountNumber: entry.debitAccount,
+        AccountName: await getAccountName(entry.debitAccount),
         CorrespondingAccountNumber: entry.creditAccount,
         DebitAmountOC: entry.amountOC,
         DebitAmount: entry.amount,
@@ -105,6 +130,7 @@ export async function postToGeneralLedger(
       await insertRow(transaction, 'GeneralLedger', {
         ...baseData,
         AccountNumber: entry.creditAccount,
+        AccountName: await getAccountName(entry.creditAccount),
         CorrespondingAccountNumber: entry.debitAccount,
         DebitAmountOC: 0,
         DebitAmount: 0,
