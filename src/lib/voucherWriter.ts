@@ -213,7 +213,7 @@ export async function createVoucher(
       await postToGeneralLedger(transaction, glHeader, glEntries, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
     }
 
-    // Insert into List/Ledger tables — MISA reads these for list views, NOT the master tables
+    // Insert into list/ledger tables — MISA reads these for list views
     const listData = {
       RefID: refId, RefDate: refDate, PostedDate: postedDate,
       RefType: b.RefType || config.refType, RefNoFinance: refNo,
@@ -229,7 +229,6 @@ export async function createVoucher(
       BankAccountID: b.BankAccountID || undefined,
     };
 
-    // Map: masterTable → list tables to insert
     const listTableMap: Record<string, string[]> = {
       CAReceipt: ['CAReceiptPaymentList'],
       CAPayment: ['CAReceiptPaymentList'],
