@@ -25,6 +25,27 @@ export async function createVoucher(
   req: Request,
   config: VoucherWriteConfig
 ): Promise<{ RefID: string; RefNo: string }> {
+  const MAX_RETRIES = 3;
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      return await _createVoucherInner(req, config);
+    } catch (err: any) {
+      const isDeadlock = err.number === 1205 || err.message?.includes('deadlock');
+      if (isDeadlock && attempt < MAX_RETRIES) {
+        console.warn(`[WARN] Deadlock on attempt ${attempt}, retrying...`);
+        await new Promise(r => setTimeout(r, 50 * attempt));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Unreachable');
+}
+
+async function _createVoucherInner(
+  req: Request,
+  config: VoucherWriteConfig
+): Promise<{ RefID: string; RefNo: string }> {
   const pool = await getPoolFromReq(req);
   const transaction = new sql.Transaction(pool);
   await transaction.begin();
@@ -33,13 +54,31 @@ export async function createVoucher(
     const b = req.body;
     const details = b.details || [];
 
-    // Validate: if details provided, sum of amounts should match TotalAmount
-    if (details.length > 0 && b.TotalAmount != null) {
-      const detailSum = details.reduce((s: number, d: any) => s + (d.Amount ?? 0), 0);
-      if (Math.abs(detailSum - b.TotalAmount) > 0.01) {
-        throw new ApiError(422, 'VALIDATION_ERROR',
-          `Sum of detail amounts (${detailSum}) does not match TotalAmount (${b.TotalAmount}).`);
+    // Validate required fields
+    if (!details.length) {
+      throw new ApiError(422, 'VALIDATION_ERROR', 'details array is required and must have at least 1 item.');
+    }
+    if (b.TotalAmount == null || b.TotalAmount === 0) {
+      throw new ApiError(422, 'VALIDATION_ERROR', 'TotalAmount is required and must not be 0.');
+    }
+    if (b.TotalAmount < 0) {
+      throw new ApiError(422, 'VALIDATION_ERROR', 'TotalAmount must be positive.');
+    }
+    for (let i = 0; i < details.length; i++) {
+      const d = details[i];
+      if (!d.DebitAccount && !d.CreditAccount) {
+        throw new ApiError(422, 'VALIDATION_ERROR', `details[${i}]: DebitAccount or CreditAccount is required.`);
       }
+      if (d.Amount == null) {
+        throw new ApiError(422, 'VALIDATION_ERROR', `details[${i}]: Amount is required.`);
+      }
+    }
+
+    // Validate: sum of detail amounts must match TotalAmount
+    const detailSum = details.reduce((s: number, d: any) => s + (d.Amount ?? 0), 0);
+    if (Math.abs(detailSum - b.TotalAmount) > 0.01) {
+      throw new ApiError(422, 'VALIDATION_ERROR',
+        `Sum of detail amounts (${detailSum}) does not match TotalAmount (${b.TotalAmount}).`);
     }
 
     const refId = generateGUID();
@@ -55,7 +94,7 @@ export async function createVoucher(
     // Use user's RefType to determine correct auto-numbering category
     const actualRefType = b.RefType || config.refType;
     const autoNumCategory = REFTYPE_TO_CATEGORY[actualRefType] || config.refTypeCategory;
-    const refNo = await generateRefNo(transaction, autoNumCategory, branchId, b.DisplayOnBook ?? 0);
+    const refNo = await generateRefNo(pool, autoNumCategory, branchId, b.DisplayOnBook ?? 0);
     // MISA expects dates at midnight (00:00:00) — strip time component
     const rawDate = new Date(b.RefDate || Date.now());
     const refDate = new Date(rawDate.getFullYear(), rawDate.getMonth(), rawDate.getDate());
