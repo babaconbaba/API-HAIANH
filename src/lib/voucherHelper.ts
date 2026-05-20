@@ -171,7 +171,7 @@ export async function deleteVoucher(
         const delL = new sql.Request(transaction);
         delL.input('refId', sql.UniqueIdentifier, id);
         await delL.query(`DELETE FROM [${plTable}] WHERE RefID = @refId`);
-      } catch (e: any) { /* skip */ }
+      } catch (e: any) { console.warn(`[WARN] delete ${plTable}:`, e.message?.substring(0, 80)); }
     }
 
     const delDetail = new sql.Request(transaction);

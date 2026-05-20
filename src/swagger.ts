@@ -54,13 +54,13 @@ const options: swaggerJsdoc.Options = {
 
 ## Authentication
 \`\`\`
-Authorization: ApiKey misa-api-key-2026
+Authorization: ApiKey your-api-key
 \`\`\`
 
 ## Multi-tenant (Remote SQL)
 | Header | Bắt buộc | Mô tả | Ví dụ |
 |--------|----------|-------|-------|
-| \`X-SQL-Instance\` | Có | SQL Server instance | \`192.168.99.200\\\\MISASME2026\` |
+| \`X-SQL-Instance\` | Có | SQL Server instance | \`your-server\\\\MISASME2026\` |
 | \`X-SQL-Database\` | Có | Tên database | \`HAG2026\` |
 | \`X-SQL-Auth\` | Có | Loại auth | \`sql\` hoặc \`windows\` |
 | \`X-SQL-Username\` | Có (sql) | Username | \`sa\` |
@@ -181,7 +181,7 @@ Xem đầy đủ 130+ RefTypes tại \`GET /system/ref-types\`
     ],
     components: {
       securitySchemes: {
-        ApiKey: { type: 'apiKey', in: 'header', name: 'Authorization', description: 'ApiKey misa-api-key-2026' },
+        ApiKey: { type: 'apiKey', in: 'header', name: 'Authorization', description: 'ApiKey your-api-key' },
       },
       parameters: {
         page: { in: 'query', name: 'page', schema: { type: 'integer', default: 1 } },
