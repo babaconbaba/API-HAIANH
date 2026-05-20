@@ -10,6 +10,10 @@ export interface GLEntry {
   description?: string;
   accountObjectId?: string;
   accountObjectName?: string;
+  accountObjectAddress?: string;
+  accountObjectCode?: string;
+  accountObjectTaxCode?: string;
+  budgetItemId?: string;
   employeeId?: string;
   organizationUnitId?: string;
   inventoryItemId?: string;
@@ -25,6 +29,7 @@ export interface GLHeader {
   exchangeRate?: number;
   branchId?: string;
   journalMemo?: string;
+  refOrder?: number;
 }
 
 /**
@@ -54,7 +59,10 @@ export async function postToGeneralLedger(
       RefDetailID: entry.refDetailId,
       RefType: header.refType,
       RefNo: header.refNo,
+      RefNo1: header.refNo,
+      RefNo2: header.refNo,
       RefDate: header.refDate,
+      RefDate1: header.refDate,
       PostedDate: header.postedDate,
       CurrencyID: header.currencyId || 'VND',
       ExchangeRate: header.exchangeRate ?? 1,
@@ -62,8 +70,19 @@ export async function postToGeneralLedger(
       BranchID: header.branchId,
       JournalMemo: header.journalMemo || '',
       ExchangeRateOperator: '*',
-      IsPostToManagementBook: true,
+      IsPostToManagementBook: false,
+      MainConvertRate: 1,
       EntryType: 0,
+      RefOrder: header.refOrder,
+      // Pass through from entry
+      AccountObjectID: entry.accountObjectId || undefined,
+      AccountObjectName: entry.accountObjectName || undefined,
+      AccountObjectAddress: entry.accountObjectAddress || undefined,
+      AccountObjectCode: entry.accountObjectCode || undefined,
+      AccountObjectTaxCode: entry.accountObjectTaxCode || undefined,
+      AccountObjectNameDI: entry.accountObjectName || undefined,
+      BudgetItemID: entry.budgetItemId || undefined,
+      SortOrder: 0,
     };
 
     // Debit side

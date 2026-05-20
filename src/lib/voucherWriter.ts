@@ -155,7 +155,12 @@ export async function createVoucher(
           amount: d.Amount ?? 0,
           amountOC: d.AmountOC ?? d.Amount ?? 0,
           description: d.Description || '',
-          accountObjectId: d.AccountObjectID,
+          accountObjectId: d.AccountObjectID || b.AccountObjectID,
+          accountObjectName: b.AccountObjectName,
+          accountObjectAddress: b.AccountObjectAddress,
+          accountObjectCode: b.AccountObjectCode,
+          accountObjectTaxCode: b.AccountObjectTaxCode,
+          budgetItemId: d.BudgetItemID,
         });
       }
     }
@@ -172,6 +177,7 @@ export async function createVoucher(
         exchangeRate: b.ExchangeRate ?? 1,
         branchId,
         journalMemo: b.JournalMemo || '',
+        refOrder: masterData.RefOrder,
       };
       await postToGeneralLedger(transaction, glHeader, glEntries, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
     }
