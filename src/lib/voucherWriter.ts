@@ -227,6 +227,8 @@ export async function createVoucher(
       CurrencyID: b.CurrencyID || 'VND', ExchangeRate: b.ExchangeRate ?? 1,
       JournalMemo: b.JournalMemo || '',
       BankAccountID: b.BankAccountID || undefined,
+      IsPostedCashBookFinance: false,
+      IsPostedCashBookManagement: false,
     };
 
     const listTableMap: Record<string, string[]> = {
