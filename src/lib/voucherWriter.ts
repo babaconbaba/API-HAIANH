@@ -213,6 +213,15 @@ export async function createVoucher(
       await postToGeneralLedger(transaction, glHeader, glEntries, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
     }
 
+    // Lookup RefTypeName
+    let refTypeName: string | undefined;
+    try {
+      const rtReq = new sql.Request(transaction);
+      rtReq.input('rt', sql.Int, b.RefType || config.refType);
+      const rtR = await rtReq.query("SELECT RefTypeName FROM SYSRefType WHERE RefType = @rt");
+      refTypeName = rtR.recordset[0]?.RefTypeName;
+    } catch (e: any) { console.warn('[WARN] RefTypeName:', e.message?.substring(0, 80)); }
+
     // Insert into list/ledger tables — MISA reads these for list views
     const listData = {
       RefID: refId, RefDate: refDate, PostedDate: postedDate,
@@ -229,6 +238,17 @@ export async function createVoucher(
       BankAccountID: b.BankAccountID || undefined,
       IsPostedCashBookFinance: false,
       IsPostedCashBookManagement: false,
+      DisplayOnBook: b.DisplayOnBook ?? 0,
+      RefOrder: masterData.RefOrder,
+      CreatedDate: new Date(),
+      CreatedBy: req.user?.username || 'api',
+      ModifiedDate: new Date(),
+      ModifiedBy: req.user?.username || 'api',
+      CAType: config.masterTable === 'CAPayment' ? 1 : 0,
+      ListTableName: config.masterTable,
+      RefTypeName: refTypeName,
+      PayReason: b.JournalMemo || '',
+      AccountObjectContactName: b.AccountObjectContactName || undefined,
     };
 
     const listTableMap: Record<string, string[]> = {
