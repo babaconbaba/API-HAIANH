@@ -201,6 +201,40 @@ export async function createVoucher(
       await postToGeneralLedger(transaction, glHeader, glEntries, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
     }
 
+    // Insert into PaymentList tables — MISA reads these for list views
+    const paymentListTables: Record<string, string> = {
+      CAReceipt: 'CAReceiptPaymentList',
+      CAPayment: 'CAReceiptPaymentList',
+      BADeposit: 'BADepositWithdrawList',
+      BAWithDraw: 'BADepositWithdrawList',
+      BAInternalTransfer: 'BADepositWithdrawList',
+    };
+    const plTable = paymentListTables[config.masterTable];
+    if (plTable) {
+      try {
+        await insertRow(transaction, plTable, {
+          RefID: refId,
+          RefDate: refDate,
+          PostedDate: postedDate,
+          RefType: b.RefType || config.refType,
+          RefNoFinance: refNo,
+          IsPostedFinance: config.postToGL ? true : false,
+          IsPostedManagement: false,
+          ReasonTypeID: b.ReasonTypeID ?? undefined,
+          AccountObjectID: b.AccountObjectID || undefined,
+          AccountObjectName: b.AccountObjectName || undefined,
+          AccountObjectAddress: b.AccountObjectAddress || undefined,
+          BranchID: branchId,
+          TotalAmount: b.TotalAmount ?? 0,
+          TotalAmountOC: b.TotalAmountOC ?? b.TotalAmount ?? 0,
+          CurrencyID: b.CurrencyID || 'VND',
+          ExchangeRate: b.ExchangeRate ?? 1,
+          JournalMemo: b.JournalMemo || '',
+          BankAccountID: b.BankAccountID || undefined,
+        }, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
+      } catch (e: any) { console.warn('[WARN] PaymentList:', e.message?.substring(0, 100)); }
+    }
+
     await transaction.commit();
     return { RefID: refId, RefNo: refNo };
   } catch (err) {
