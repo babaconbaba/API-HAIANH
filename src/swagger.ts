@@ -41,6 +41,206 @@ const options: swaggerJsdoc.Options = {
       version: '4.0.0',
       description: `REST API kết nối trực tiếp database MISA SME 2026. Tạo chứng từ hiện đúng trên MISA desktop.
 
+---
+
+# HƯỚNG DẪN NHANH (COPY PASTE CHẠY LUÔN)
+
+## Bước 0: Headers bắt buộc cho MỌI request
+\`\`\`
+Authorization: ApiKey misa-api-key-2026
+X-SQL-Instance: 192.168.99.200\\\\MISASME2026
+X-SQL-Database: HAG2026
+X-SQL-Auth: sql
+X-SQL-Username: sa
+X-SQL-Password: 123456789A@
+\`\`\`
+
+## Bước 1: Tìm ID khách hàng/NCC
+**KHÔNG ĐƯỢC truyền tên text.** Phải tìm UUID ID trước.
+
+\`\`\`bash
+# Tìm khách hàng (type=1)
+curl http://192.168.99.216:3004/api/dictionary/account-objects?type=1&search=GHTK \\
+  -H "Authorization: ApiKey misa-api-key-2026" \\
+  -H "X-SQL-Instance: 192.168.99.200\\\\MISASME2026" \\
+  -H "X-SQL-Database: HAG2026" \\
+  -H "X-SQL-Auth: sql" -H "X-SQL-Username: sa" -H "X-SQL-Password: 123456789A@"
+
+# Response → lấy AccountObjectID:
+# "AccountObjectID": "0DF5DAE9-FFB1-412A-B19F-5E4467AE7FEB"
+\`\`\`
+
+\`\`\`bash
+# Tìm NCC (type=0)
+curl http://192.168.99.216:3004/api/dictionary/account-objects?type=0&search=Binh+Duong \\
+  -H "Authorization: ApiKey misa-api-key-2026" ...
+\`\`\`
+
+## Bước 2: Tìm ID hàng hóa (nếu cần cho SA/PU/IN)
+\`\`\`bash
+curl http://192.168.99.216:3004/api/dictionary/inventory-items?search=POLO \\
+  -H "Authorization: ApiKey misa-api-key-2026" ...
+
+# Response → lấy:
+# "InventoryItemID": "0599D9EA-49FB-4441-8B9B-5AC17ED9AED9"
+# "UnitID": "3A3D4460-F54B-46B5-A26A-CD416A020FA7"  (đơn vị tính)
+\`\`\`
+
+## Bước 3: Tìm ID kho (nếu cần)
+\`\`\`bash
+curl http://192.168.99.216:3004/api/inventory/stocks \\
+  -H "Authorization: ApiKey misa-api-key-2026" ...
+
+# Response → lấy:
+# "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24"
+\`\`\`
+
+## Bước 4: Tìm ID tài khoản ngân hàng (nếu cần cho BA)
+\`\`\`bash
+curl http://192.168.99.216:3004/api/dictionary/bank-accounts \\
+  -H "Authorization: ApiKey misa-api-key-2026" ...
+
+# Response → lấy:
+# "BankAccountID": "BE40299A-E40B-401F-A9F3-2D5DA7A0A676"
+\`\`\`
+
+---
+
+# VÍ DỤ ĐẦY ĐỦ — COPY PASTE
+
+## Tạo PHIẾU CHI
+\`\`\`bash
+curl -X POST http://192.168.99.216:3004/api/journal/cash/payments \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: ApiKey misa-api-key-2026" \\
+  -H "X-SQL-Instance: 192.168.99.200\\\\MISASME2026" \\
+  -H "X-SQL-Database: HAG2026" \\
+  -H "X-SQL-Auth: sql" \\
+  -H "X-SQL-Username: sa" \\
+  -H "X-SQL-Password: 123456789A@" \\
+  -d '{
+    "JournalMemo": "Chi tra tien NCC ABC",
+    "TotalAmount": 5000000,
+    "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+    "ReasonTypeID": 23,
+    "details": [{
+      "DebitAccount": "331",
+      "CreditAccount": "1111",
+      "Amount": 5000000,
+      "Description": "Tra tien mua NVL"
+    }]
+  }'
+\`\`\`
+
+## Tạo ỦY NHIỆM CHI
+\`\`\`bash
+curl -X POST http://192.168.99.216:3004/api/journal/bank/withdrawals \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: ApiKey misa-api-key-2026" \\
+  -H "X-SQL-Instance: 192.168.99.200\\\\MISASME2026" \\
+  -H "X-SQL-Database: HAG2026" \\
+  -H "X-SQL-Auth: sql" \\
+  -H "X-SQL-Username: sa" \\
+  -H "X-SQL-Password: 123456789A@" \\
+  -d '{
+    "JournalMemo": "UNC tra tien NCC",
+    "TotalAmount": 10000000,
+    "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+    "BankAccountID": "BE40299A-E40B-401F-A9F3-2D5DA7A0A676",
+    "ReasonTypeID": 43,
+    "details": [{
+      "DebitAccount": "331",
+      "CreditAccount": "1121",
+      "Amount": 10000000
+    }]
+  }'
+\`\`\`
+
+## Tạo BÁN HÀNG (có hàng hóa)
+\`\`\`bash
+curl -X POST http://192.168.99.216:3004/api/sales/vouchers \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: ApiKey misa-api-key-2026" \\
+  -H "X-SQL-Instance: 192.168.99.200\\\\MISASME2026" \\
+  -H "X-SQL-Database: HAG2026" \\
+  -H "X-SQL-Auth: sql" \\
+  -H "X-SQL-Username: sa" \\
+  -H "X-SQL-Password: 123456789A@" \\
+  -d '{
+    "JournalMemo": "Ban hang cho GHTK",
+    "TotalAmount": 500000,
+    "AccountObjectID": "0DF5DAE9-FFB1-412A-B19F-5E4467AE7FEB",
+    "details": [{
+      "DebitAccount": "131",
+      "CreditAccount": "51115",
+      "Amount": 500000,
+      "InventoryItemID": "0599D9EA-49FB-4441-8B9B-5AC17ED9AED9",
+      "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24",
+      "UnitID": "3A3D4460-F54B-46B5-A26A-CD416A020FA7",
+      "Quantity": 10,
+      "UnitPrice": 50000,
+      "SaleQuantity": 10,
+      "SaleAmount": 500000,
+      "SaleAmountOC": 500000,
+      "Description": "POLO x10"
+    }]
+  }'
+\`\`\`
+
+## Tạo MUA HÀNG
+\`\`\`bash
+curl -X POST http://192.168.99.216:3004/api/purchase/vouchers \\
+  -H "Content-Type: application/json" \\
+  -H "Authorization: ApiKey misa-api-key-2026" \\
+  -H "X-SQL-Instance: 192.168.99.200\\\\MISASME2026" \\
+  -H "X-SQL-Database: HAG2026" \\
+  -H "X-SQL-Auth: sql" \\
+  -H "X-SQL-Username: sa" \\
+  -H "X-SQL-Password: 123456789A@" \\
+  -d '{
+    "JournalMemo": "Mua NVL tu NCC",
+    "TotalAmount": 300000,
+    "AccountObjectID": "B5C8EF7D-4476-47B9-B7D4-42CB9BD87C2C",
+    "details": [{
+      "DebitAccount": "1561",
+      "CreditAccount": "331",
+      "Amount": 300000,
+      "InventoryItemID": "72817271-ADFB-4618-A4AA-4F84C663072F",
+      "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24",
+      "UnitID": "71112249-98CE-4334-A06D-34736155FA35",
+      "Quantity": 15,
+      "UnitPrice": 20000,
+      "PurchaseQuantity": 15,
+      "PurchaseAmount": 300000,
+      "PurchaseAmountOC": 300000,
+      "Description": "NVL xi mang x15"
+    }]
+  }'
+\`\`\`
+
+## Xóa chứng từ
+\`\`\`bash
+curl -X DELETE http://192.168.99.216:3004/api/journal/cash/payments/{RefID} \\
+  -H "Authorization: ApiKey misa-api-key-2026" \\
+  -H "X-SQL-Instance: 192.168.99.200\\\\MISASME2026" ...
+\`\`\`
+
+---
+
+# GHI NHỚ
+
+| Truyền gì | Lấy ở đâu | Ví dụ |
+|-----------|-----------|-------|
+| \`AccountObjectID\` | \`GET /dictionary/account-objects?type=1\` (KH) hoặc \`?type=0\` (NCC) | \`3A848988-...\` |
+| \`BankAccountID\` | \`GET /dictionary/bank-accounts\` | \`BE40299A-...\` |
+| \`InventoryItemID\` | \`GET /dictionary/inventory-items\` | \`0599D9EA-...\` |
+| \`StockID\` | \`GET /inventory/stocks\` | \`0D83E65A-...\` |
+| \`UnitID\` | \`GET /dictionary/units\` hoặc trong InventoryItem response | \`3A3D4460-...\` |
+
+**KHÔNG BAO GIỜ** truyền text name. LUÔN truyền UUID ID. API tự fill tên.
+
+---
+
 ## Tính năng
 - **240+ endpoints** — 16 modules kế toán đầy đủ
 - **CRUD + GL Posting** — Tạo chứng từ tự động ghi sổ cái + list tables (MISA desktop hiện đúng)
