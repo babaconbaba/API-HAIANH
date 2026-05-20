@@ -42,8 +42,11 @@ export async function createVoucher(
 
     const refId = generateGUID();
     const refNo = await generateRefNo(transaction, config.refTypeCategory);
-    const refDate = new Date(b.RefDate || Date.now());
-    const postedDate = new Date(b.PostedDate || refDate);
+    // MISA expects dates at midnight (00:00:00) — strip time component
+    const rawDate = new Date(b.RefDate || Date.now());
+    const refDate = new Date(rawDate.getFullYear(), rawDate.getMonth(), rawDate.getDate());
+    const rawPosted = new Date(b.PostedDate || refDate);
+    const postedDate = new Date(rawPosted.getFullYear(), rawPosted.getMonth(), rawPosted.getDate());
 
     // Get default BranchID if not provided
     let branchId = b.BranchID;
