@@ -39,11 +39,11 @@ const options: swaggerJsdoc.Options = {
     info: {
       title: 'MISA SME 2026 API',
       version: '4.0.0',
-      description: `REST API kết nối trực tiếp database MISA SME 2026. Tạo chứng từ hiện đúng trên MISA desktop.
+      description: `REST API kết nối trực tiếp database MISA SME 2026. Địt Nhau Với Misa Vãi Lồn
 
 ---
 
-# HƯỚNG DẪN NHANH (COPY PASTE CHẠY LUÔN)
+# HƯỚNG DẪN NHANH ĐỊT NHAU VỚI MISA
 
 ## Bước 0: Headers bắt buộc cho MỌI request
 \`\`\`
