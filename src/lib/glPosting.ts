@@ -30,6 +30,9 @@ export interface GLHeader {
   branchId?: string;
   journalMemo?: string;
   refOrder?: number;
+  bankAccountId?: string;
+  bankAccountNumber?: string;
+  bankName?: string;
 }
 
 /**
@@ -106,6 +109,9 @@ export async function postToGeneralLedger(
       AccountObjectTaxCode: entry.accountObjectTaxCode || undefined,
       AccountObjectNameDI: entry.accountObjectName || undefined,
       BudgetItemID: entry.budgetItemId || undefined,
+      BankAccountID: header.bankAccountId || undefined,
+      BankAccountNumber: header.bankAccountNumber || undefined,
+      BankName: header.bankName || undefined,
       SortOrder: 0,
     };
 

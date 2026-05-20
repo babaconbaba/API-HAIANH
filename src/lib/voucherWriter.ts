@@ -76,6 +76,21 @@ export async function createVoucher(
       } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
     }
 
+    // Auto-fill BankAccount info if ID provided
+    if (b.BankAccountID && !b.BankAccountNumber) {
+      try {
+        const baReq = new sql.Request(transaction);
+        baReq.input('baId', sql.UniqueIdentifier, b.BankAccountID);
+        const baResult = await baReq.query(
+          `SELECT BankAccountNumber, BankName FROM BankAccount WHERE BankAccountID = @baId`
+        );
+        if (baResult.recordset[0]) {
+          if (!b.BankAccountNumber) b.BankAccountNumber = baResult.recordset[0].BankAccountNumber;
+          if (!b.BankName) b.BankName = baResult.recordset[0].BankName;
+        }
+      } catch (e: any) { console.warn('[WARN]', e.message?.substring(0, 100)); }
+    }
+
     // Build master record — merge user data with required defaults
     const masterData: Record<string, any> = {
       ...b,
@@ -179,6 +194,9 @@ export async function createVoucher(
         branchId,
         journalMemo: b.JournalMemo || '',
         refOrder: masterData.RefOrder,
+        bankAccountId: b.BankAccountID,
+        bankAccountNumber: b.BankAccountNumber,
+        bankName: b.BankName,
       };
       await postToGeneralLedger(transaction, glHeader, glEntries, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
     }
