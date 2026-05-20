@@ -125,6 +125,12 @@ export async function insertRow(
   const insertParams: string[] = [];
   const request = new sql.Request(transactionOrPool as any);
 
+  // Build case-insensitive key map: "Reftype" → data["RefType"]
+  const dataKeyMap: Record<string, string> = {};
+  for (const k of Object.keys(data)) {
+    dataKeyMap[k.toLowerCase()] = k;
+  }
+
   for (const col of columns) {
     // Skip identity columns (auto-increment) and timestamp
     if (col.isIdentity || col.type === 'timestamp') continue;
@@ -132,7 +138,9 @@ export async function insertRow(
     const sqlType = getSqlType(col.type);
     if (!sqlType) continue;
 
-    let value = data[col.name];
+    // Case-insensitive lookup: SQL column "Reftype" matches JS key "RefType"
+    const dataKey = dataKeyMap[col.name.toLowerCase()];
+    let value = dataKey ? data[dataKey] : undefined;
 
     // If not provided, determine default
     if (value === undefined || value === null) {
@@ -155,7 +163,7 @@ export async function insertRow(
     }
 
     // Skip null nullable columns not explicitly in data
-    if (value === null && col.isNullable && !(col.name in data)) continue;
+    if (value === null && col.isNullable && !dataKey) continue;
 
     // Coerce boolean values for numeric SQL types (msnodesqlv8 sends false as NULL for sql.Int)
     if (typeof value === 'boolean' && (col.type === 'int' || col.type === 'decimal' || col.type === 'money')) {
@@ -195,15 +203,20 @@ export async function updateRow(
   const request = new sql.Request(transactionOrPool as any);
   request.input('_pkValue', sql.UniqueIdentifier, pkValue);
 
+  // Case-insensitive key map
+  const dataKeyMap: Record<string, string> = {};
+  for (const k of Object.keys(data)) dataKeyMap[k.toLowerCase()] = k;
+
   for (const col of columns) {
     if (col.isIdentity || col.type === 'timestamp') continue;
     if (col.name === pkColumn) continue;
-    if (!(col.name in data)) continue;
+    const dataKey = dataKeyMap[col.name.toLowerCase()];
+    if (!dataKey || !(dataKey in data)) continue;
 
     const sqlType = getSqlType(col.type);
     if (!sqlType) continue;
 
-    let value = data[col.name];
+    let value = data[dataKey];
     if (typeof value === 'boolean' && (col.type === 'int' || col.type === 'decimal' || col.type === 'money')) {
       value = value ? 1 : 0;
     }
