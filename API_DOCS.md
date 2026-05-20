@@ -25,7 +25,7 @@ npm run start:cluster    # multi-core (production)
 ### .env Configuration
 
 ```env
-PORT=3003
+PORT=3004
 NODE_ENV=production
 
 # Auth
@@ -41,7 +41,7 @@ SQL_USERNAME=sa
 SQL_PASSWORD=123456789A@
 
 # Pool (tùy chỉnh)
-SQL_POOL_MAX=50                   # max connections per pool
+SQL_POOL_MAX=500                  # max connections per pool (500 cho 2000 NV)
 SQL_POOL_MIN=0
 SQL_REQUEST_TIMEOUT=30000         # ms
 
@@ -86,7 +86,7 @@ curl -H "Authorization: ApiKey misa-api-key-2026" \
   -H "X-SQL-Auth: sql" \
   -H "X-SQL-Username: sa" \
   -H "X-SQL-Password: password123" \
-  http://localhost:3003/api/system/health
+  http://localhost:3004/api/system/health
 ```
 
 ---
@@ -165,12 +165,13 @@ curl -H "Authorization: ApiKey misa-api-key-2026" \
 
 ## Auto-fill (Kế thừa tự động)
 
-Khi truyền `AccountObjectID`, API tự động fill:
-- `AccountObjectName` — Tên KH/NCC
-- `AccountObjectAddress` — Địa chỉ
-- `AccountObjectTaxCode` — Mã số thuế
-- `AccountObjectContactName` — Người liên hệ
-- `detail.AccountObjectID` — Kế thừa từ master xuống detail lines
+> **KHÔNG BAO GIỜ truyền text name. LUÔN truyền UUID ID. API tự fill tên.**
+
+| Truyền (UUID) | Lấy ở đâu | API tự fill |
+|---------------|-----------|-------------|
+| `AccountObjectID` | `GET /dictionary/account-objects?type=1` (KH) hoặc `?type=0` (NCC) | AccountObjectName, Address, TaxCode, ContactName |
+| `BankAccountID` | `GET /dictionary/bank-accounts` | BankAccountNumber, BankName |
+| `InventoryItemID` (detail) | `GET /dictionary/inventory-items` | InventoryItemCode, InventoryItemName (cho SaleLedger/PurchaseLedger) |
 
 **Không cần truyền** Name/Address/TaxCode nếu đã truyền ID.
 
@@ -180,13 +181,22 @@ Khi truyền `AccountObjectID`, API tự động fill:
 
 ### Flow tự động
 
-1. `RefID` — Auto-generate GUID
-2. `RefNo` / `RefNoFinance` — Auto-increment từ `SYSAutoID`
-3. `BranchID` — Default chi nhánh đầu tiên
-4. `AccountObject*` — Auto-fill từ AccountObject table
-5. Validate: `SUM(details.Amount) == TotalAmount`
-6. Insert master → Insert details → Post GL (nếu có)
-7. Toàn bộ trong 1 SQL transaction, rollback nếu lỗi
+1. **Validate** — details required, TotalAmount > 0, sum match
+2. `RefID` — Auto-generate GUID
+3. `RefNo` / `RefNoFinance` — Auto-increment từ `SYSAutoID` (đúng prefix theo BranchID)
+4. `BranchID` — Default chi nhánh đầu tiên
+5. `AccountObject*` — Auto-fill từ AccountObject table
+6. `BankAccount*` — Auto-fill từ BankAccount table
+7. Insert **master table** → Insert **detail lines** → Insert **CustomFieldLedger** per detail
+8. Post **GeneralLedger** (debit + credit per detail line)
+9. Insert **list table** (MISA desktop đọc list tables để hiện danh sách):
+   - CA → `CAReceiptPaymentList` (CAType, ListTableName, RefTypeName)
+   - BA → `BADepositWithdrawList` (BAType)
+   - IN → `INInwardOutwardList` (INType)
+   - SA → `SaleLedger` (per detail line, 32+ fields, auto-lookup InventoryItemCode/Name)
+   - PU → `PurchaseLedger` (per detail line, 27+ fields, auto-lookup InventoryItemCode/Name)
+10. Toàn bộ trong SQL transaction, rollback nếu lỗi
+11. Auto-number dùng transaction riêng (tránh deadlock concurrent)
 
 ### Master fields
 
@@ -251,6 +261,16 @@ Khi truyền `AccountObjectID`, API tự động fill:
 
 > Tất cả fields đều optional (trừ DebitAccount, CreditAccount, Amount). Truyền bao nhiêu cũng được — API pass-through vào SQL.
 
+### Validation (tự động)
+
+API reject 422 nếu:
+- `details` rỗng hoặc thiếu → `"details array is required and must have at least 1 item."`
+- `TotalAmount` = 0 hoặc thiếu → `"TotalAmount is required and must not be 0."`
+- `TotalAmount` < 0 → `"TotalAmount must be positive."`
+- Detail thiếu `DebitAccount` + `CreditAccount` → `"details[0]: DebitAccount or CreditAccount is required."`
+- Detail thiếu `Amount` → `"details[0]: Amount is required."`
+- Sum detail != TotalAmount → `"Sum of detail amounts (X) does not match TotalAmount (Y)."`
+
 ### Xóa chứng từ (DELETE)
 
 1. Unpost GL → Delete details → Delete master
@@ -311,7 +331,7 @@ GET /api/system/query/CAPaymentDetailTax?refId=xxx
 
 ```bash
 # Tạo phiếu thu 50 triệu
-curl -X POST http://localhost:3003/api/journal/cash/receipts \
+curl -X POST http://localhost:3004/api/journal/cash/receipts \
   -H "Authorization: ApiKey misa-api-key-2026" \
   -H "Content-Type: application/json" \
   -d '{
@@ -340,7 +360,7 @@ curl -X POST http://localhost:3003/api/journal/cash/receipts \
 ### 2. Bán hàng + VAT (Sales Voucher)
 
 ```bash
-curl -X POST http://localhost:3003/api/sales/vouchers \
+curl -X POST http://localhost:3004/api/sales/vouchers \
   -H "Authorization: ApiKey misa-api-key-2026" \
   -H "Content-Type: application/json" \
   -d '{
@@ -382,7 +402,7 @@ curl -X POST http://localhost:3003/api/sales/vouchers \
 ### 3. Mua hàng (Purchase Voucher)
 
 ```bash
-curl -X POST http://localhost:3003/api/purchase/vouchers \
+curl -X POST http://localhost:3004/api/purchase/vouchers \
   -H "Authorization: ApiKey misa-api-key-2026" \
   -H "Content-Type: application/json" \
   -d '{
@@ -411,7 +431,7 @@ curl -X POST http://localhost:3003/api/purchase/vouchers \
 ### 4. Dashboard
 
 ```bash
-curl http://localhost:3003/api/reports/dashboard?year=2026 \
+curl http://localhost:3004/api/reports/dashboard?year=2026 \
   -H "Authorization: ApiKey misa-api-key-2026"
 
 # Response
@@ -431,7 +451,7 @@ curl http://localhost:3003/api/reports/dashboard?year=2026 \
 
 ---
 
-## Endpoints (229 total)
+## Endpoints (240+ total)
 
 ### 1. System — `/api/system` (8)
 
@@ -548,7 +568,7 @@ GET /api/system/query/PUVoucherDetailCost?refId=xxx
 | **Trả lại MH** | `/returns` | ✓ | `/:refId` | ✓ | **✓** |
 | **Mua dịch vụ** | `/services` | ✓ | `/:refId` | ✓ | **✓** |
 | Nhận hóa đơn | `/invoices` | — | `/:refId` | — | — |
-| Giảm giá MH | `/discounts` | — | `/:refId` | — | — |
+| **Giảm giá MH** | `/discounts` | ✓ | `/:refId` | ✓ | **✓** |
 
 ### 6. Inventory — `/api/inventory` (15)
 
@@ -673,29 +693,62 @@ GET /api/system/query/PUVoucherDetailCost?refId=xxx
 
 ---
 
-## RefType (Loại chứng từ)
+## RefType (130+ loại chứng từ)
 
-| Code | Loại |
-|------|------|
-| 1010 | Phiếu thu |
-| 1020 | Phiếu chi |
-| 1500 | Thu tiền gửi |
-| 1510 | Ủy nhiệm chi |
-| 1560 | Chuyển tiền nội bộ |
-| 250 | Ghi tăng TSCĐ |
-| 254 | Khấu hao |
-| 301 | Đơn mua hàng |
-| 302 | Mua hàng |
-| 330 | Mua dịch vụ |
-| 3030 | Trả lại hàng mua |
-| 3510 | Báo giá |
-| 3520 | Đơn đặt hàng |
-| 3530 | Bán hàng |
-| 3540 | Trả lại hàng bán |
-| 3550 | Giảm giá bán hàng |
-| 3560 | Hóa đơn |
-| 4011 | CT nghiệp vụ khác |
-| 450 | Ghi tăng CCDC |
+Mỗi endpoint có RefType mặc định. Muốn tạo loại con khác → truyền `"RefType": xxx` trong body.
+Xem đầy đủ tại `GET /api/system/ref-types`.
+
+**Tiền mặt (CA):**
+| Code | Loại | Endpoint |
+|------|------|----------|
+| 1010 | Phiếu thu | `/journal/cash/receipts` |
+| 1011 | Thu TM khách hàng | + `"RefType":1011` |
+| 1020 | Phiếu chi | `/journal/cash/payments` |
+| 1021 | Chi trả NCC | + `"RefType":1021` |
+| 1022 | Chi nộp thuế | + `"RefType":1022` |
+| 1026 | Chi trả lương | + `"RefType":1026` |
+
+**Ngân hàng (BA):**
+| Code | Loại | Endpoint |
+|------|------|----------|
+| 1500 | Thu tiền gửi | `/journal/bank/deposits` |
+| 1510 | Ủy nhiệm chi | `/journal/bank/withdrawals` |
+| 1560 | Chuyển tiền NB | `/journal/bank/internal-transfers` |
+
+**Kho (IN):**
+| Code | Loại | Endpoint |
+|------|------|----------|
+| 2010 | NK thành phẩm SX | `/inventory/inwards` + `"RefType":2010` |
+| 2014 | NK khác (mặc định) | `/inventory/inwards` |
+| 2020 | XK bán hàng (mặc định) | `/inventory/outwards` |
+| 2023 | XK sản xuất | `/inventory/outwards` + `"RefType":2023` |
+| 2030 | Chuyển kho | `/inventory/transfers` |
+
+**Mua hàng (PU):**
+| Code | Loại | Endpoint |
+|------|------|----------|
+| 302 | Mua hàng TN nhập kho chưa TT | `/purchase/vouchers` |
+| 312 | Mua hàng TN ko qua kho chưa TT | + `"RefType":312` |
+| 318 | Mua hàng NK nhập kho chưa TT | + `"RefType":318` |
+| 330 | Mua dịch vụ | `/purchase/services` |
+| 3030 | Hàng mua trả lại | `/purchase/returns` |
+| 3040 | Hàng mua giảm giá | `/purchase/discounts` |
+
+**Bán hàng (SA):**
+| Code | Loại | Endpoint |
+|------|------|----------|
+| 3530 | Bán hàng TN chưa thu tiền | `/sales/vouchers` |
+| 3531 | Bán hàng - Tiền mặt | + `"RefType":3531` |
+| 3540 | Hàng bán trả lại | `/sales/returns` |
+| 3550 | Giảm giá hàng bán | `/sales/discounts` |
+| 3520 | Đơn đặt hàng | `/sales/orders` |
+
+**Sổ cái (GL):**
+| Code | Loại | Endpoint |
+|------|------|----------|
+| 4010 | CT nghiệp vụ khác | `/journal/gl-vouchers` |
+| 4012 | Kết chuyển lãi lỗ | + `"RefType":4012` |
+| 4014 | Bù trừ công nợ | + `"RefType":4014` |
 
 ---
 
@@ -719,7 +772,7 @@ GET /api/system/query/PUVoucherDetailCost?refId=xxx
 | 14 | General | `/api/general` | 28 |
 | 15 | Costing | `/api/costing` | 14 |
 | 16 | Audit | `/api/audit` | 8 |
-| | **TỔNG** | | **232** |
+| | **TỔNG** | | **240+** |
 
 ---
 
@@ -730,9 +783,11 @@ GET /api/system/query/PUVoucherDetailCost?refId=xxx
 | Server | `192.168.99.216:3004` |
 | DB | `HAG2026 @ 192.168.99.200\MISASME2026` |
 | Data | 134,924 chứng từ, 12,565 hàng hóa, 1,636 KH/NCC |
-| Pool | 50 connections |
+| Pool | 500 connections (2000 NV) |
 | Cluster | Multi-core support (`npm run start:cluster`) |
 | Compression | Gzip (giảm 86% response size) |
 | Rate Limit | 1000 req/15min/IP |
 
-Tested: 11/11 voucher types = **0 missing fields** vs MISA desktop.
+Tested: 7/7 voucher types tạo + hiện trên MISA desktop.
+Concurrent: 100 requests cùng lúc = 100/100 OK trong 1.8s, 0 duplicate.
+Driver: tedious (pure JS) — hỗ trợ concurrent tốt.
