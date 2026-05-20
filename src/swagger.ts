@@ -535,18 +535,44 @@ Sub-types phổ biến:
         CAReceiptCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Phiếu thu.** RefType mặc định 1010.
+Sub-types: 1011=thu TM khách hàng, 1013=thu hoàn thuế.
+
+**QUAN TRỌNG:** Truyền \`AccountObjectID\` (UUID) — KHÔNG truyền text name.
+Lấy ID từ \`GET /dictionary/account-objects?type=1\` (type=1 = khách hàng).
+API tự fill AccountObjectName, Address, TaxCode, ContactName.
+
+**Ví dụ:**
+\`\`\`json
+{
+  "RefType": 1010,
+  "JournalMemo": "Thu tiền KH Đại Dương",
+  "TotalAmount": 5000000,
+  "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+  "ReasonTypeID": 13,
+  "details": [{
+    "DebitAccount": "1111",
+    "CreditAccount": "131",
+    "Amount": 5000000,
+    "Description": "Thu tiền bán hàng"
+  }]
+}
+\`\`\``,
           properties: {
-            RefDate: { type: 'string', format: 'date', example: '2026-02-01' },
+            RefType: { type: 'integer', example: 1010, description: '1010=phiếu thu (mặc định), 1011=thu TM KH, 1013=thu hoàn thuế' },
+            RefDate: { type: 'string', format: 'date', example: '2026-05-20', description: 'Ngày chứng từ (mặc định hôm nay)' },
             JournalMemo: { type: 'string', example: 'Thu tiền KH Đại Dương' },
-            TotalAmount: { type: 'number', example: 5000000 },
-            AccountObjectName: { type: 'string', example: 'Công ty CP Đại Dương' },
+            TotalAmount: { type: 'number', example: 5000000, description: 'BẮT BUỘC. Tổng tiền = sum(detail.Amount)' },
+            AccountObjectID: { type: 'string', format: 'uuid', example: '3A848988-EDFE-4726-AA93-D13D5EC958FB', description: 'BẮT BUỘC. ID khách hàng (lấy từ GET /dictionary/account-objects). API tự fill Name, Address, TaxCode' },
+            ReasonTypeID: { type: 'integer', example: 13, description: 'Lý do thu: 13=thu KH, 34=thu TGNH. Lấy từ bảng ReasonType' },
             details: {
-              type: 'array', items: {
-                type: 'object', properties: {
-                  DebitAccount: { type: 'string', example: '1111', description: 'Tiền mặt VND' },
-                  CreditAccount: { type: 'string', example: '131', description: 'Phải thu KH' },
-                  Amount: { type: 'number', example: 5000000 },
-                  Description: { type: 'string', example: 'Thu tiền hàng' },
+              type: 'array', description: 'BẮT BUỘC. Mảng dòng hạch toán.', items: {
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount'], properties: {
+                  DebitAccount: { type: 'string', example: '1111', description: 'TK Nợ: 1111=tiền mặt VND' },
+                  CreditAccount: { type: 'string', example: '131', description: 'TK Có: 131=phải thu KH' },
+                  Amount: { type: 'number', example: 5000000, description: 'Số tiền' },
+                  Description: { type: 'string', example: 'Thu tiền bán hàng' },
+                  BudgetItemID: { type: 'string', format: 'uuid', description: 'Mục ngân sách (tùy chọn)' },
                 },
               },
             },
@@ -557,16 +583,42 @@ Sub-types phổ biến:
         CAPaymentCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Phiếu chi.** RefType mặc định 1020.
+Sub-types: 1021=chi trả NCC, 1022=chi nộp thuế, 1025=chi BH, 1026=chi lương.
+
+**QUAN TRỌNG:** Truyền \`AccountObjectID\` (UUID) — KHÔNG truyền text name.
+Lấy ID từ \`GET /dictionary/account-objects?type=0\` (type=0 = nhà cung cấp).
+
+**Ví dụ:**
+\`\`\`json
+{
+  "RefType": 1020,
+  "JournalMemo": "Chi trả tiền NCC ABC",
+  "TotalAmount": 3000000,
+  "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+  "ReasonTypeID": 23,
+  "details": [{
+    "DebitAccount": "331",
+    "CreditAccount": "1111",
+    "Amount": 3000000,
+    "Description": "Trả tiền mua NVL"
+  }]
+}
+\`\`\``,
           properties: {
-            RefDate: { type: 'string', format: 'date', example: '2026-02-05' },
-            JournalMemo: { type: 'string', example: 'Chi trả NCC Lan Tân' },
-            TotalAmount: { type: 'number', example: 3000000 },
+            RefType: { type: 'integer', example: 1020, description: '1020=phiếu chi (mặc định), 1021=chi NCC, 1022=chi thuế, 1026=chi lương' },
+            RefDate: { type: 'string', format: 'date', example: '2026-05-20' },
+            JournalMemo: { type: 'string', example: 'Chi trả tiền NCC ABC' },
+            TotalAmount: { type: 'number', example: 3000000, description: 'BẮT BUỘC. Tổng tiền = sum(detail.Amount)' },
+            AccountObjectID: { type: 'string', format: 'uuid', example: '3A848988-EDFE-4726-AA93-D13D5EC958FB', description: 'ID nhà cung cấp (lấy từ GET /dictionary/account-objects?type=0)' },
+            ReasonTypeID: { type: 'integer', example: 23, description: 'Lý do chi: 23=chi NCC' },
             details: {
-              type: 'array', items: {
-                type: 'object', properties: {
-                  DebitAccount: { type: 'string', example: '331', description: 'Phải trả NCC' },
-                  CreditAccount: { type: 'string', example: '1111', description: 'Tiền mặt VND' },
+              type: 'array', description: 'Mảng dòng hạch toán', items: {
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount'], properties: {
+                  DebitAccount: { type: 'string', example: '331', description: 'TK Nợ: 331=phải trả NCC' },
+                  CreditAccount: { type: 'string', example: '1111', description: 'TK Có: 1111=tiền mặt VND' },
                   Amount: { type: 'number', example: 3000000 },
+                  Description: { type: 'string', example: 'Trả tiền mua NVL' },
                 },
               },
             },
@@ -577,15 +629,56 @@ Sub-types phổ biến:
         BADepositCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Thu tiền gửi ngân hàng.** RefType mặc định 1500.
+Sub-types: 1502=thu TG từ KH.
+
+**QUAN TRỌNG:**
+- Truyền \`AccountObjectID\` (UUID) — ID khách hàng/NCC
+- Truyền \`BankAccountID\` (UUID) — ID tài khoản ngân hàng
+- Lấy BankAccountID từ \`GET /dictionary/bank-accounts\`
+
+**Ví dụ:**
+\`\`\`json
+{
+  "RefType": 1500,
+  "JournalMemo": "Thu tiền gửi từ KH ABC",
+  "TotalAmount": 20000000,
+  "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+  "BankAccountID": "BE40299A-E40B-401F-A9F3-2D5DA7A0A676",
+  "ReasonTypeID": 34,
+  "details": [{
+    "DebitAccount": "1121",
+    "CreditAccount": "131",
+    "Amount": 20000000
+  }]
+}
+\`\`\`
+
+**Cũng dùng cho Ủy nhiệm chi** (\`POST /journal/bank/withdrawals\`):
+\`\`\`json
+{
+  "RefType": 1510,
+  "JournalMemo": "UNC trả tiền NCC",
+  "TotalAmount": 10000000,
+  "AccountObjectID": "...",
+  "BankAccountID": "BE40299A-E40B-401F-A9F3-2D5DA7A0A676",
+  "ReasonTypeID": 43,
+  "details": [{ "DebitAccount": "331", "CreditAccount": "1121", "Amount": 10000000 }]
+}
+\`\`\``,
           properties: {
-            RefDate: { type: 'string', format: 'date' },
-            JournalMemo: { type: 'string', example: 'Thu TGNH từ KH' },
-            TotalAmount: { type: 'number', example: 20000000 },
+            RefType: { type: 'integer', example: 1500, description: '1500=thu TG (mặc định), 1502=thu từ KH. UNC: 1510, 1511=UNC trả NCC' },
+            RefDate: { type: 'string', format: 'date', example: '2026-05-20' },
+            JournalMemo: { type: 'string', example: 'Thu tiền gửi từ KH ABC' },
+            TotalAmount: { type: 'number', example: 20000000, description: 'BẮT BUỘC. Tổng tiền = sum(detail.Amount)' },
+            AccountObjectID: { type: 'string', format: 'uuid', example: '3A848988-EDFE-4726-AA93-D13D5EC958FB', description: 'ID KH/NCC (lấy từ GET /dictionary/account-objects)' },
+            BankAccountID: { type: 'string', format: 'uuid', example: 'BE40299A-E40B-401F-A9F3-2D5DA7A0A676', description: 'BẮT BUỘC cho BA. ID TK ngân hàng (lấy từ GET /dictionary/bank-accounts). API tự fill BankName' },
+            ReasonTypeID: { type: 'integer', example: 34, description: 'Lý do: 34=thu TGNH, 43=chi TGNH' },
             details: {
               type: 'array', items: {
-                type: 'object', properties: {
-                  DebitAccount: { type: 'string', example: '1121', description: 'TGNH VND' },
-                  CreditAccount: { type: 'string', example: '131' },
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount'], properties: {
+                  DebitAccount: { type: 'string', example: '1121', description: 'TK Nợ: 1121=TGNH VND' },
+                  CreditAccount: { type: 'string', example: '131', description: 'TK Có: 131=phải thu KH' },
                   Amount: { type: 'number', example: 20000000 },
                 },
               },
