@@ -161,20 +161,16 @@ export async function deleteVoucher(
   try {
     await unpostFromGeneralLedger(transaction, id);
 
-    // Delete from PaymentList tables
-    for (const plTable of ['CAReceiptPaymentList', 'BADepositWithdrawList']) {
-      try {
-        const delPL = new sql.Request(transaction);
-        delPL.input('refId', sql.UniqueIdentifier, id);
-        await delPL.query(`DELETE FROM [${plTable}] WHERE RefID = @refId`);
-      } catch (e: any) { /* table may not exist or no rows */ }
-    }
-    // Delete from AccountObjectLedger + CustomFieldLedger
-    for (const lt of ['AccountObjectLedger', 'CustomFieldLedger']) {
+    // Delete from ALL list/ledger tables MISA uses
+    for (const plTable of [
+      'CAReceiptPaymentList', 'BADepositWithdrawList', 'INInwardOutwardList',
+      'SaleLedger', 'PurchaseLedger', 'InventoryLedger', 'TaxLedger', 'SupplyLedger', 'FixedAssetLedger',
+      'AccountObjectLedger', 'CustomFieldLedger',
+    ]) {
       try {
         const delL = new sql.Request(transaction);
         delL.input('refId', sql.UniqueIdentifier, id);
-        await delL.query(`DELETE FROM [${lt}] WHERE RefID = @refId`);
+        await delL.query(`DELETE FROM [${plTable}] WHERE RefID = @refId`);
       } catch (e: any) { /* skip */ }
     }
 

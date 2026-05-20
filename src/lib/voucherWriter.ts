@@ -201,38 +201,42 @@ export async function createVoucher(
       await postToGeneralLedger(transaction, glHeader, glEntries, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
     }
 
-    // Insert into PaymentList tables — MISA reads these for list views
-    const paymentListTables: Record<string, string> = {
-      CAReceipt: 'CAReceiptPaymentList',
-      CAPayment: 'CAReceiptPaymentList',
-      BADeposit: 'BADepositWithdrawList',
-      BAWithDraw: 'BADepositWithdrawList',
-      BAInternalTransfer: 'BADepositWithdrawList',
+    // Insert into List/Ledger tables — MISA reads these for list views, NOT the master tables
+    const listData = {
+      RefID: refId, RefDate: refDate, PostedDate: postedDate,
+      RefType: b.RefType || config.refType, RefNoFinance: refNo,
+      IsPostedFinance: config.postToGL ? true : false, IsPostedManagement: false,
+      ReasonTypeID: b.ReasonTypeID ?? undefined,
+      AccountObjectID: b.AccountObjectID || undefined,
+      AccountObjectName: b.AccountObjectName || undefined,
+      AccountObjectAddress: b.AccountObjectAddress || undefined,
+      BranchID: branchId,
+      TotalAmount: b.TotalAmount ?? 0, TotalAmountOC: b.TotalAmountOC ?? b.TotalAmount ?? 0,
+      CurrencyID: b.CurrencyID || 'VND', ExchangeRate: b.ExchangeRate ?? 1,
+      JournalMemo: b.JournalMemo || '',
+      BankAccountID: b.BankAccountID || undefined,
     };
-    const plTable = paymentListTables[config.masterTable];
-    if (plTable) {
+
+    // Map: masterTable → list tables to insert
+    const listTableMap: Record<string, string[]> = {
+      CAReceipt: ['CAReceiptPaymentList'],
+      CAPayment: ['CAReceiptPaymentList'],
+      BADeposit: ['BADepositWithdrawList'],
+      BAWithDraw: ['BADepositWithdrawList'],
+      BAInternalTransfer: ['BADepositWithdrawList'],
+      INInward: ['INInwardOutwardList'],
+      INOutward: ['INInwardOutwardList'],
+      INTransfer: ['INInwardOutwardList'],
+      SAVoucher: ['SaleLedger'],
+      PUVoucher: ['PurchaseLedger'],
+      PUService: ['PurchaseLedger'],
+    };
+
+    const listTables = listTableMap[config.masterTable] || [];
+    for (const lt of listTables) {
       try {
-        await insertRow(transaction, plTable, {
-          RefID: refId,
-          RefDate: refDate,
-          PostedDate: postedDate,
-          RefType: b.RefType || config.refType,
-          RefNoFinance: refNo,
-          IsPostedFinance: config.postToGL ? true : false,
-          IsPostedManagement: false,
-          ReasonTypeID: b.ReasonTypeID ?? undefined,
-          AccountObjectID: b.AccountObjectID || undefined,
-          AccountObjectName: b.AccountObjectName || undefined,
-          AccountObjectAddress: b.AccountObjectAddress || undefined,
-          BranchID: branchId,
-          TotalAmount: b.TotalAmount ?? 0,
-          TotalAmountOC: b.TotalAmountOC ?? b.TotalAmount ?? 0,
-          CurrencyID: b.CurrencyID || 'VND',
-          ExchangeRate: b.ExchangeRate ?? 1,
-          JournalMemo: b.JournalMemo || '',
-          BankAccountID: b.BankAccountID || undefined,
-        }, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
-      } catch (e: any) { console.warn('[WARN] PaymentList:', e.message?.substring(0, 100)); }
+        await insertRow(transaction, lt, listData, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
+      } catch (e: any) { console.warn(`[WARN] ${lt}:`, e.message?.substring(0, 100)); }
     }
 
     await transaction.commit();
