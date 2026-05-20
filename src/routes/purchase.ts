@@ -156,4 +156,17 @@ router.get('/discounts/:refId', asyncHandler(async (req, res) => {
   res.json(await getVoucherWithDetails(req, 'PUDiscount', 'PUDiscountDetail', req.params.refId));
 }));
 
+router.post('/discounts', asyncHandler(async (req, res) => {
+  const result = await createVoucher(req, {
+    masterTable: 'PUDiscount', detailTable: 'PUDiscountDetail',
+    refType: REF_TYPES.PU_DISCOUNT, refTypeCategory: REF_TYPE_CATEGORY.PU_DISCOUNT,
+    postToGL: true,
+  });
+  res.status(201).json({ success: true, data: result });
+}));
+
+router.delete('/discounts/:refId', asyncHandler(async (req, res) => {
+  res.json(await deleteVoucher(req, 'PUDiscount', 'PUDiscountDetail', req.params.refId));
+}));
+
 export default router;

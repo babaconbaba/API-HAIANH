@@ -4,6 +4,7 @@ import { v4 as uuidv4 } from 'uuid';
 /**
  * Generate next RefNo from SYSAutoID table.
  * Must be called within a transaction for atomicity.
+ * Matches by BranchID when available for correct branch-specific prefix.
  */
 export async function generateRefNo(
   transaction: sql.Transaction,
@@ -12,19 +13,29 @@ export async function generateRefNo(
   displayOnBook: number = 0
 ): Promise<string> {
   const request = new sql.Request(transaction);
-
-  // Lock and read current value
-  // SYSAutoID uses RefTypeCategory (not RefType)
   request.input('refTypeCategory', sql.Int, refType);
-  const result = await request.query(
-    `SELECT TOP 1 Prefix, Value, Suffix, LengthOfValue
-     FROM SYSAutoID WITH (UPDLOCK, HOLDLOCK)
-     WHERE RefTypeCategory = @refTypeCategory
-     ORDER BY AutoID`
-  );
+
+  let query: string;
+  if (branchId) {
+    // Try branch-specific entry first, fallback to non-branch entry
+    request.input('branchId', sql.UniqueIdentifier, branchId);
+    request.input('displayOnBook', sql.Int, displayOnBook);
+    query = `SELECT TOP 1 AutoID, Prefix, Value, Suffix, LengthOfValue
+             FROM SYSAutoID WITH (UPDLOCK, HOLDLOCK)
+             WHERE RefTypeCategory = @refTypeCategory
+               AND (BranchID = @branchId OR BranchID IS NULL)
+               AND DisplayOnBook = @displayOnBook
+             ORDER BY CASE WHEN BranchID = @branchId THEN 0 ELSE 1 END, AutoID`;
+  } else {
+    query = `SELECT TOP 1 AutoID, Prefix, Value, Suffix, LengthOfValue
+             FROM SYSAutoID WITH (UPDLOCK, HOLDLOCK)
+             WHERE RefTypeCategory = @refTypeCategory
+             ORDER BY AutoID`;
+  }
+
+  const result = await request.query(query);
 
   if (!result.recordset.length) {
-    // No auto-number config — use UUID suffix to guarantee uniqueness
     return `API${uuidv4().slice(0, 8).toUpperCase()}`;
   }
 
@@ -34,15 +45,12 @@ export async function generateRefNo(
   const suffix = row.Suffix || '';
   const padLen = row.LengthOfValue || 5;
 
-  // Update counter
+  // Update counter — only the matching row
   const updateReq = new sql.Request(transaction);
-  updateReq.input('refTypeCategory', sql.Int, refType);
+  updateReq.input('autoId', sql.UniqueIdentifier, row.AutoID);
   updateReq.input('newValue', sql.Decimal(18, 0), newValue);
-  await updateReq.query(
-    `UPDATE SYSAutoID SET Value = @newValue WHERE RefTypeCategory = @refTypeCategory`
-  );
+  await updateReq.query(`UPDATE SYSAutoID SET Value = @newValue WHERE AutoID = @autoId`);
 
-  // Build RefNo: prefix + zero-padded number + suffix
   const numStr = String(newValue).padStart(padLen, '0');
   return `${prefix}${numStr}${suffix}`;
 }

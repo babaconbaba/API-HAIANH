@@ -226,4 +226,27 @@ router.delete('/bank/internal-transfers/:refId', asyncHandler(async (req, res) =
   res.json(await deleteVoucher(req, 'BAInternalTransfer', 'BAInternalTransferDetail', req.params.refId));
 }));
 
+// ─── GLVoucher (Chứng từ nghiệp vụ khác) ───
+
+router.get('/gl-vouchers', asyncHandler(async (req, res) => {
+  res.json(await listVouchers(req, 'GLVoucher', VOUCHER_COLS));
+}));
+
+router.get('/gl-vouchers/:refId', asyncHandler(async (req, res) => {
+  res.json(await getVoucherWithDetails(req, 'GLVoucher', 'GLVoucherDetail', req.params.refId));
+}));
+
+router.post('/gl-vouchers', asyncHandler(async (req, res) => {
+  const result = await createVoucher(req, {
+    masterTable: 'GLVoucher', detailTable: 'GLVoucherDetail',
+    refType: REF_TYPES.GL_VOUCHER, refTypeCategory: REF_TYPE_CATEGORY.GL_VOUCHER,
+    postToGL: true,
+  });
+  res.status(201).json({ success: true, data: result });
+}));
+
+router.delete('/gl-vouchers/:refId', asyncHandler(async (req, res) => {
+  res.json(await deleteVoucher(req, 'GLVoucher', 'GLVoucherDetail', req.params.refId));
+}));
+
 export default router;

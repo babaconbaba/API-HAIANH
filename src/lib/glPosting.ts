@@ -17,6 +17,17 @@ export interface GLEntry {
   employeeId?: string;
   organizationUnitId?: string;
   inventoryItemId?: string;
+  inventoryItemCode?: string;
+  inventoryItemName?: string;
+  stockId?: string;
+  stockCode?: string;
+  stockName?: string;
+  unitId?: string;
+  mainUnitId?: string;
+  quantity?: number;
+  mainQuantity?: number;
+  sortOrder?: number;
+  contactName?: string;
 }
 
 export interface GLHeader {
@@ -108,11 +119,23 @@ export async function postToGeneralLedger(
       AccountObjectCode: entry.accountObjectCode || undefined,
       AccountObjectTaxCode: entry.accountObjectTaxCode || undefined,
       AccountObjectNameDI: entry.accountObjectName || undefined,
+      ContactName: entry.contactName || undefined,
       BudgetItemID: entry.budgetItemId || undefined,
       BankAccountID: header.bankAccountId || undefined,
       BankAccountNumber: header.bankAccountNumber || undefined,
       BankName: header.bankName || undefined,
-      SortOrder: 0,
+      // Inventory/Stock for SA/PU vouchers
+      InventoryItemID: entry.inventoryItemId || undefined,
+      InventoryItemCode: entry.inventoryItemCode || undefined,
+      InventoryItemName: entry.inventoryItemName || undefined,
+      StockID: entry.stockId || undefined,
+      StockCode: entry.stockCode || undefined,
+      StockName: entry.stockName || undefined,
+      UnitID: entry.unitId || undefined,
+      MainUnitID: entry.mainUnitId || undefined,
+      Quantity: entry.quantity ?? 0,
+      MainQuantity: entry.mainQuantity ?? entry.quantity ?? 0,
+      SortOrder: entry.sortOrder ?? 0,
     };
 
     // Debit side

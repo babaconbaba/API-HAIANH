@@ -38,17 +38,19 @@ const options: swaggerJsdoc.Options = {
     openapi: '3.0.0',
     info: {
       title: 'MISA SME 2026 API',
-      version: '3.0.0',
-      description: `REST API kết nối trực tiếp database MISA SME 2026.
+      version: '4.0.0',
+      description: `REST API kết nối trực tiếp database MISA SME 2026. Tạo chứng từ hiện đúng trên MISA desktop.
 
 ## Tính năng
-- **232 endpoints** — 16 modules kế toán đầy đủ
-- **CRUD + GL Posting** — Tạo chứng từ tự động ghi sổ cái
-- **Sub-details tự động** — GET detail trả kèm tất cả sub-tables (tax, cost, allocation...)
+- **240+ endpoints** — 16 modules kế toán đầy đủ
+- **CRUD + GL Posting** — Tạo chứng từ tự động ghi sổ cái + list tables (MISA desktop hiện đúng)
+- **130+ RefType sub-types** — Hỗ trợ tất cả loại chứng từ con trong MISA
+- **Auto-fill** — Truyền AccountObjectID → tự fill Name, Address, TaxCode, ContactName
+- **Auto-fill BankAccount** — Truyền BankAccountID → tự fill BankAccountNumber, BankName
+- **Auto-fill InventoryItem** — Truyền InventoryItemID → tự fill Code, Name cho SaleLedger/PurchaseLedger
+- **RefNo tự động** — Đọc SYSAutoID theo BranchID, prefix đúng chi nhánh
 - **Multi-tenant** — Kết nối nhiều SQL Server / database qua headers
-- **Auto-fill** — Truyền AccountObjectID tự fill Name, Address, TaxCode, ContactName
 - **Generic query** — Đọc bất kỳ 150+ tables qua \`/system/query/:table\`
-- **134,924+ chứng từ** đã test trên DB production thật (HAG2026)
 
 ## Authentication
 \`\`\`
@@ -56,21 +58,102 @@ Authorization: ApiKey misa-api-key-2026
 \`\`\`
 
 ## Multi-tenant (Remote SQL)
-| Header | Mô tả |
-|--------|-------|
-| \`X-SQL-Instance\` | SQL Server (VD: \`192.168.1.100\\\\MISASME2026\`) |
-| \`X-SQL-Database\` | Database name |
-| \`X-SQL-Auth\` | \`windows\` hoặc \`sql\` |
-| \`X-SQL-Username\` | Username (cho SQL Auth) |
-| \`X-SQL-Password\` | Password |
+| Header | Bắt buộc | Mô tả | Ví dụ |
+|--------|----------|-------|-------|
+| \`X-SQL-Instance\` | Có | SQL Server instance | \`192.168.99.200\\\\MISASME2026\` |
+| \`X-SQL-Database\` | Có | Tên database | \`HAG2026\` |
+| \`X-SQL-Auth\` | Có | Loại auth | \`sql\` hoặc \`windows\` |
+| \`X-SQL-Username\` | Có (sql) | Username | \`sa\` |
+| \`X-SQL-Password\` | Có (sql) | Password | \`MyPassword123\` |
 
-## Auto-fill (kế thừa)
-Khi truyền \`AccountObjectID\`, API tự động fill:
-- \`AccountObjectName\` — Tên KH/NCC
-- \`AccountObjectAddress\` — Địa chỉ
-- \`AccountObjectTaxCode\` — Mã số thuế
-- \`AccountObjectContactName\` — Người liên hệ
-- \`detail.AccountObjectID\` — Kế thừa xuống dòng detail
+## Cách tạo chứng từ (QUAN TRỌNG)
+
+### Bước 1: Chọn endpoint
+Mỗi module có endpoint riêng. VD: \`POST /journal/cash/payments\` cho phiếu chi.
+
+### Bước 2: Truyền RefType (tùy chọn)
+Mỗi endpoint có RefType mặc định. Muốn tạo loại con khác, truyền \`RefType\` trong body.
+
+**Ví dụ:** Endpoint \`/journal/cash/payments\` mặc định RefType=1020 (Phiếu chi).
+Muốn tạo "Phiếu chi trả tiền NCC", truyền \`"RefType": 1021\`.
+
+### Bước 3: Truyền đầy đủ fields
+- \`TotalAmount\` — Tổng tiền (BẮT BUỘC)
+- \`details\` — Mảng dòng hạch toán (BẮT BUỘC, ít nhất 1 dòng)
+- Mỗi dòng detail cần: \`DebitAccount\`, \`CreditAccount\`, \`Amount\`
+- Tổng Amount các dòng detail PHẢI = TotalAmount
+
+### Auto-fill (tự điền)
+| Truyền | API tự fill |
+|--------|-------------|
+| \`AccountObjectID\` | AccountObjectName, Address, TaxCode, ContactName |
+| \`BankAccountID\` | BankAccountNumber, BankName |
+| \`InventoryItemID\` (detail) | InventoryItemCode, InventoryItemName (cho SaleLedger/PurchaseLedger) |
+
+### RefType sub-types đầy đủ
+
+**Tiền mặt (CA):**
+| RefType | Tên | Endpoint |
+|---------|-----|----------|
+| 1010 | Phiếu thu | \`POST /journal/cash/receipts\` |
+| 1011 | Phiếu thu tiền mặt KH | \`POST /journal/cash/receipts\` + \`"RefType":1011\` |
+| 1013 | Phiếu thu hoàn thuế | \`POST /journal/cash/receipts\` + \`"RefType":1013\` |
+| 1020 | Phiếu chi | \`POST /journal/cash/payments\` |
+| 1021 | Chi trả tiền NCC | \`POST /journal/cash/payments\` + \`"RefType":1021\` |
+| 1022 | Chi nộp thuế | \`POST /journal/cash/payments\` + \`"RefType":1022\` |
+| 1025 | Chi nộp bảo hiểm | \`POST /journal/cash/payments\` + \`"RefType":1025\` |
+| 1026 | Chi trả lương NV | \`POST /journal/cash/payments\` + \`"RefType":1026\` |
+
+**Ngân hàng (BA):**
+| RefType | Tên | Endpoint |
+|---------|-----|----------|
+| 1500 | Thu tiền gửi | \`POST /journal/bank/deposits\` |
+| 1502 | Thu TG từ KH | \`POST /journal/bank/deposits\` + \`"RefType":1502\` |
+| 1510 | Ủy nhiệm chi | \`POST /journal/bank/withdrawals\` |
+| 1511 | UNC trả tiền NCC | \`POST /journal/bank/withdrawals\` + \`"RefType":1511\` |
+| 1512 | Chi TG nộp thuế | \`POST /journal/bank/withdrawals\` + \`"RefType":1512\` |
+| 1560 | Chuyển tiền nội bộ | \`POST /journal/bank/internal-transfers\` |
+
+**Kho (IN):**
+| RefType | Tên | Endpoint |
+|---------|-----|----------|
+| 2010 | NK thành phẩm SX | \`POST /inventory/inwards\` + \`"RefType":2010\` |
+| 2013 | NK từ hàng bán trả lại | \`POST /inventory/inwards\` + \`"RefType":2013\` |
+| 2014 | NK khác (mặc định) | \`POST /inventory/inwards\` |
+| 2020 | XK bán hàng (mặc định) | \`POST /inventory/outwards\` |
+| 2022 | XK khác | \`POST /inventory/outwards\` + \`"RefType":2022\` |
+| 2023 | XK sản xuất | \`POST /inventory/outwards\` + \`"RefType":2023\` |
+| 2030 | Chuyển kho | \`POST /inventory/transfers\` |
+
+**Mua hàng (PU):**
+| RefType | Tên | Endpoint |
+|---------|-----|----------|
+| 302 | Mua hàng TN nhập kho chưa TT (mặc định) | \`POST /purchase/vouchers\` |
+| 312 | Mua hàng TN ko qua kho chưa TT | \`POST /purchase/vouchers\` + \`"RefType":312\` |
+| 318 | Mua hàng NK nhập kho chưa TT | \`POST /purchase/vouchers\` + \`"RefType":318\` |
+| 330 | Mua dịch vụ chưa TT | \`POST /purchase/services\` |
+| 3030 | Hàng mua trả lại (giảm trừ CN) | \`POST /purchase/returns\` |
+| 3040 | Hàng mua giảm giá | \`POST /purchase/discounts\` |
+
+**Bán hàng (SA):**
+| RefType | Tên | Endpoint |
+|---------|-----|----------|
+| 3530 | Bán hàng TN chưa thu tiền (mặc định) | \`POST /sales/vouchers\` |
+| 3531 | Bán hàng - Tiền mặt | \`POST /sales/vouchers\` + \`"RefType":3531\` |
+| 3532 | Bán hàng xuất khẩu | \`POST /sales/vouchers\` + \`"RefType":3532\` |
+| 3540 | Hàng bán trả lại | \`POST /sales/returns\` |
+| 3550 | Giảm giá hàng bán | \`POST /sales/discounts\` |
+| 3520 | Đơn đặt hàng | \`POST /sales/orders\` |
+
+**Sổ cái (GL):**
+| RefType | Tên | Endpoint |
+|---------|-----|----------|
+| 4010 | CT nghiệp vụ khác (mặc định) | \`POST /journal/gl-vouchers\` |
+| 4011 | Khấu trừ thuế | \`POST /journal/gl-vouchers\` + \`"RefType":4011\` |
+| 4012 | Kết chuyển lãi lỗ | \`POST /journal/gl-vouchers\` + \`"RefType":4012\` |
+| 4014 | Bù trừ công nợ | \`POST /journal/gl-vouchers\` + \`"RefType":4014\` |
+
+Xem đầy đủ 130+ RefTypes tại \`GET /system/ref-types\`
 `,
     },
     servers: [{ url: '/api', description: 'MISA SME API Server' }],
@@ -161,29 +244,68 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
           },
         },
 
-        // ── Voucher (chứng từ chung) ──
+        // ── Voucher (chứng từ chung — dùng cho CA, BA, GL) ──
         VoucherCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Cấu trúc chung cho TẤT CẢ chứng từ.**
+Tổng Amount các dòng detail PHẢI bằng TotalAmount, nếu không sẽ lỗi 422.
+
+**Ví dụ phiếu chi:** \`POST /journal/cash/payments\`
+\`\`\`json
+{
+  "RefType": 1020,
+  "JournalMemo": "Chi trả tiền NCC ABC",
+  "TotalAmount": 5000000,
+  "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+  "ReasonTypeID": 23,
+  "details": [{
+    "DebitAccount": "331",
+    "CreditAccount": "1111",
+    "Amount": 5000000,
+    "Description": "Trả tiền mua NVL"
+  }]
+}
+\`\`\`
+
+**Ví dụ ủy nhiệm chi:** \`POST /journal/bank/withdrawals\`
+\`\`\`json
+{
+  "RefType": 1510,
+  "JournalMemo": "UNC trả tiền NCC",
+  "TotalAmount": 10000000,
+  "AccountObjectID": "...",
+  "BankAccountID": "BE40299A-E40B-401F-A9F3-2D5DA7A0A676",
+  "ReasonTypeID": 43,
+  "details": [{
+    "DebitAccount": "331",
+    "CreditAccount": "1121",
+    "Amount": 10000000
+  }]
+}
+\`\`\``,
           properties: {
-            RefDate: { type: 'string', format: 'date', example: '2026-01-15', description: 'Ngày chứng từ (mặc định hôm nay)' },
-            PostedDate: { type: 'string', format: 'date', description: 'Ngày hạch toán (mặc định = RefDate)' },
-            JournalMemo: { type: 'string', example: 'Thu tiền khách hàng ABC' },
-            TotalAmount: { type: 'number', example: 10000000 },
-            CurrencyID: { type: 'string', default: 'VND' },
-            ExchangeRate: { type: 'number', default: 1 },
-            AccountObjectID: { type: 'string', format: 'uuid', description: 'ID KH/NCC — tự fill Name, Address, TaxCode, ContactName' },
-            AccountObjectName: { type: 'string', description: 'Tự fill nếu truyền AccountObjectID' },
-            BranchID: { type: 'string', format: 'uuid', description: 'Mặc định chi nhánh đầu tiên' },
-            ReasonTypeID: { type: 'integer', description: 'Lý do thu/chi (13=thu KH, 23=chi NCC, 34=thu TGNH, 43=chi TGNH)' },
-            BankAccountID: { type: 'string', format: 'uuid', description: 'TK ngân hàng (cho BA vouchers)' },
-            BankName: { type: 'string', description: 'Tên ngân hàng' },
-            Month: { type: 'integer', description: 'Tháng (cho GL vouchers)' },
-            Year: { type: 'integer', description: 'Năm (cho GL vouchers)' },
-            IsSaleWithOutward: { type: 'boolean', description: 'Xuất kho kèm bán hàng (SA)' },
-            AccountObjectTaxCode: { type: 'string', description: 'MST (tự fill từ AccountObject)' },
+            RefType: { type: 'integer', description: 'Loại chứng từ con. Mặc định theo endpoint. Truyền để chọn loại con cụ thể (VD: 1021=chi NCC, 1022=chi thuế). Xem GET /system/ref-types', example: 1020 },
+            RefDate: { type: 'string', format: 'date', example: '2026-05-20', description: 'Ngày chứng từ. Mặc định = hôm nay. MISA lưu midnight T00:00:00' },
+            PostedDate: { type: 'string', format: 'date', description: 'Ngày hạch toán. Mặc định = RefDate' },
+            JournalMemo: { type: 'string', example: 'Chi trả tiền NCC Hồng Hà', description: 'Diễn giải chứng từ (hiện trên MISA desktop)' },
+            TotalAmount: { type: 'number', example: 5000000, description: 'BẮT BUỘC. Tổng tiền. PHẢI = sum(detail.Amount)' },
+            TotalAmountOC: { type: 'number', description: 'Tổng tiền nguyên tệ (mặc định = TotalAmount). Chỉ dùng khi CurrencyID != VND' },
+            CurrencyID: { type: 'string', default: 'VND', description: 'Mã tiền tệ. Mặc định VND' },
+            ExchangeRate: { type: 'number', default: 1, description: 'Tỷ giá. Mặc định 1 (VND)' },
+            AccountObjectID: { type: 'string', format: 'uuid', description: 'ID khách hàng/NCC. Truyền ID → API tự fill Name, Address, TaxCode, ContactName' },
+            AccountObjectName: { type: 'string', description: 'Tên KH/NCC (tự fill nếu truyền AccountObjectID)' },
+            AccountObjectAddress: { type: 'string', description: 'Địa chỉ (tự fill)' },
+            AccountObjectContactName: { type: 'string', description: 'Người liên hệ (tự fill)' },
+            BranchID: { type: 'string', format: 'uuid', description: 'Chi nhánh. Mặc định = chi nhánh đầu tiên trong DB' },
+            DisplayOnBook: { type: 'integer', enum: [0, 1, 2], default: 0, description: '0=Sổ tài chính, 1=Sổ quản trị, 2=Cả hai' },
+            ReasonTypeID: { type: 'integer', description: 'Lý do thu/chi. **CA:** 13=thu KH, 23=chi NCC. **BA:** 34=thu TGNH, 43=chi TGNH. Xem bảng ReasonType trong MISA' },
+            BankAccountID: { type: 'string', format: 'uuid', description: '**Cho BA (ngân hàng).** ID tài khoản ngân hàng. Truyền ID → tự fill BankAccountNumber, BankName' },
+            BankName: { type: 'string', description: 'Tên ngân hàng (tự fill nếu truyền BankAccountID)' },
+            EmployeeID: { type: 'string', format: 'uuid', description: 'Nhân viên phụ trách' },
             details: {
               type: 'array',
+              description: 'BẮT BUỘC. Mảng dòng hạch toán. Ít nhất 1 dòng.',
               items: { $ref: '#/components/schemas/VoucherDetail' },
             },
           },
@@ -191,35 +313,70 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
         VoucherDetail: {
           type: 'object',
           required: ['DebitAccount', 'CreditAccount', 'Amount'],
+          description: `**Dòng hạch toán.** Mỗi dòng = 1 bút toán Nợ/Có.
+
+**Ví dụ đơn giản (CA/BA/GL):**
+\`\`\`json
+{ "DebitAccount": "331", "CreditAccount": "1111", "Amount": 5000000, "Description": "Trả tiền NCC" }
+\`\`\`
+
+**Ví dụ có hàng hóa (SA/PU/IN):**
+\`\`\`json
+{
+  "DebitAccount": "1561", "CreditAccount": "331", "Amount": 2000000,
+  "InventoryItemID": "0599D9EA-49FB-4441-8B9B-5AC17ED9AED9",
+  "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24",
+  "UnitID": "3A3D4460-F54B-46B5-A26A-CD416A020FA7",
+  "Quantity": 100, "UnitPrice": 20000,
+  "Description": "Xi măng x100 bao"
+}
+\`\`\``,
           properties: {
-            DebitAccount: { type: 'string', example: '1111', description: 'TK Nợ' },
-            CreditAccount: { type: 'string', example: '131', description: 'TK Có' },
-            Amount: { type: 'number', example: 10000000 },
-            AmountOC: { type: 'number', description: 'Số tiền nguyên tệ (mặc định = Amount)' },
-            Description: { type: 'string', example: 'Thu tiền bán hàng' },
-            Quantity: { type: 'number', example: 100 },
-            UnitPrice: { type: 'number', example: 100000 },
-            InventoryItemID: { type: 'string', format: 'uuid', description: 'Mã hàng (bắt buộc cho SA/PU/IN)' },
-            AccountObjectID: { type: 'string', format: 'uuid', description: 'Đối tượng dòng (kế thừa từ master)' },
-            StockID: { type: 'string', format: 'uuid', description: 'Kho' },
-            UnitID: { type: 'string', format: 'uuid', description: 'Đơn vị tính' },
-            MainUnitID: { type: 'string', format: 'uuid', description: 'ĐVT chính' },
-            MainQuantity: { type: 'number', description: 'SL quy đổi ĐVT chính' },
-            MainConvertRate: { type: 'number', description: 'Tỷ lệ quy đổi (mặc định 1)' },
-            MainUnitPrice: { type: 'number', description: 'Đơn giá ĐVT chính' },
-            OrderID: { type: 'string', format: 'uuid', description: 'Liên kết đơn hàng' },
-            JobID: { type: 'string', format: 'uuid', description: 'Đối tượng THCP' },
+            DebitAccount: { type: 'string', example: '1111', description: 'BẮT BUỘC. Tài khoản Nợ (VD: 1111=tiền mặt, 1121=TGNH, 131=phải thu, 331=phải trả, 1561=hàng hóa, 632=giá vốn)' },
+            CreditAccount: { type: 'string', example: '131', description: 'BẮT BUỘC. Tài khoản Có' },
+            Amount: { type: 'number', example: 5000000, description: 'BẮT BUỘC. Số tiền dòng này' },
+            AmountOC: { type: 'number', description: 'Số tiền nguyên tệ (mặc định = Amount). Chỉ dùng khi ngoại tệ' },
+            Description: { type: 'string', example: 'Mua NVL xi măng', description: 'Diễn giải dòng' },
+            // === Hàng hóa (cho SA/PU/IN) ===
+            InventoryItemID: { type: 'string', format: 'uuid', description: '**SA/PU/IN:** ID hàng hóa/vật tư. Lấy từ GET /dictionary/inventory-items' },
+            StockID: { type: 'string', format: 'uuid', description: '**SA/PU/IN:** ID kho. Lấy từ GET /inventory/stocks' },
+            UnitID: { type: 'string', format: 'uuid', description: '**SA/PU/IN:** ID đơn vị tính. Lấy từ GET /dictionary/units' },
+            Quantity: { type: 'number', example: 100, description: 'Số lượng' },
+            UnitPrice: { type: 'number', example: 20000, description: 'Đơn giá' },
+            // === Quy đổi ĐVT ===
+            MainUnitID: { type: 'string', format: 'uuid', description: 'ĐVT chính (mặc định = UnitID)' },
+            MainQuantity: { type: 'number', description: 'SL quy đổi ĐVT chính (mặc định = Quantity)' },
+            MainConvertRate: { type: 'number', default: 1, description: 'Tỷ lệ quy đổi (mặc định 1)' },
+            MainUnitPrice: { type: 'number', description: 'Đơn giá ĐVT chính (mặc định = UnitPrice)' },
+            // === Bán hàng (SA) ===
+            SaleQuantity: { type: 'number', description: '**SA:** Số lượng bán (mặc định = Quantity)' },
+            SaleAmount: { type: 'number', description: '**SA:** Tiền bán (mặc định = Amount)' },
+            SaleAmountOC: { type: 'number', description: '**SA:** Tiền bán nguyên tệ' },
+            // === Mua hàng (PU) ===
+            PurchaseQuantity: { type: 'number', description: '**PU:** Số lượng mua (mặc định = Quantity)' },
+            PurchaseAmount: { type: 'number', description: '**PU:** Tiền mua (mặc định = Amount)' },
+            PurchaseAmountOC: { type: 'number', description: '**PU:** Tiền mua nguyên tệ' },
+            // === Thuế ===
+            VATAccount: { type: 'string', example: '33311', description: 'TK thuế GTGT' },
+            VATRate: { type: 'number', example: 10, description: 'Thuế suất % (10, 8, 5, 0)' },
+            VATAmount: { type: 'number', description: 'Tiền thuế GTGT' },
+            VATDescription: { type: 'string', description: 'Diễn giải thuế' },
+            DiscountAccount: { type: 'string', example: '52111', description: 'TK chiết khấu/giảm giá' },
+            DiscountRate: { type: 'number', description: '% chiết khấu' },
+            DiscountAmount: { type: 'number', description: 'Tiền chiết khấu' },
+            // === Hóa đơn ===
+            InvNo: { type: 'string', description: 'Số hóa đơn (mua hàng)' },
+            InvDate: { type: 'string', format: 'date', description: 'Ngày hóa đơn' },
+            InvSeries: { type: 'string', description: 'Ký hiệu hóa đơn' },
+            // === Liên kết ===
+            AccountObjectID: { type: 'string', format: 'uuid', description: 'Đối tượng dòng (kế thừa từ master nếu không truyền)' },
+            OrderID: { type: 'string', format: 'uuid', description: 'Liên kết đơn hàng (SAOrder/PUOrder)' },
+            JobID: { type: 'string', format: 'uuid', description: 'Đối tượng THCP (tính giá thành)' },
             ExpenseItemID: { type: 'string', format: 'uuid', description: 'Khoản mục chi phí' },
             BudgetItemID: { type: 'string', format: 'uuid', description: 'Mục ngân sách' },
             OrganizationUnitID: { type: 'string', format: 'uuid', description: 'Phòng ban' },
-            PurchasePurposeID: { type: 'string', format: 'uuid', description: 'Mục đích mua' },
-            VATAccount: { type: 'string', example: '33311', description: 'TK thuế GTGT' },
-            VATRate: { type: 'number', example: 10, description: 'Thuế suất %' },
-            VATAmount: { type: 'number', description: 'Tiền thuế' },
-            VATDescription: { type: 'string', description: 'Diễn giải thuế' },
-            DiscountAccount: { type: 'string', example: '52111', description: 'TK chiết khấu' },
-            InvNo: { type: 'string', description: 'Số hóa đơn (mua hàng)' },
-            InvDate: { type: 'string', format: 'date', description: 'Ngày hóa đơn' },
+            ContractID: { type: 'string', format: 'uuid', description: 'Hợp đồng' },
+            ProjectWorkID: { type: 'string', format: 'uuid', description: 'Công trình/dự án' },
           },
         },
 
@@ -227,28 +384,59 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
         SAVoucherCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Bán hàng.** RefType mặc định: 3530 (bán hàng TN chưa thu tiền).
+Sub-types: 3531=bán TM, 3532=xuất khẩu, 3534=đại lý, 3535=ủy thác.
+
+**Ví dụ bán hàng chưa thu tiền:**
+\`\`\`json
+{
+  "JournalMemo": "Bán hàng cho GHTK",
+  "TotalAmount": 6527778,
+  "AccountObjectID": "0DF5DAE9-FFB1-412A-B19F-5E4467AE7FEB",
+  "details": [{
+    "DebitAccount": "131", "CreditAccount": "51115",
+    "Amount": 6527778,
+    "InventoryItemID": "0599D9EA-49FB-4441-8B9B-5AC17ED9AED9",
+    "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24",
+    "UnitID": "3A3D4460-F54B-46B5-A26A-CD416A020FA7",
+    "Quantity": 50, "UnitPrice": 130555.55,
+    "SaleQuantity": 50, "SaleAmount": 6527778, "SaleAmountOC": 6527778,
+    "Description": "POLO ÁO SẴN PRIME COTTON 03"
+  }]
+}
+\`\`\`
+
+**Lưu ý:** API tự insert SaleLedger (per detail line) + GeneralLedger + CustomFieldLedger.
+Truyền InventoryItemID → tự lookup InventoryItemCode/Name cho SaleLedger.`,
           properties: {
-            RefDate: { type: 'string', format: 'date', example: '2026-01-15' },
-            JournalMemo: { type: 'string', example: 'Bán hàng cho Công ty ABC' },
-            TotalAmount: { type: 'number', example: 11000000 },
-            TotalSaleAmount: { type: 'number', example: 10000000 },
-            TotalVATAmount: { type: 'number', example: 1000000 },
-            AccountObjectID: { type: 'string', format: 'uuid' },
-            AccountObjectName: { type: 'string', example: 'Công ty ABC' },
-            BranchID: { type: 'string', format: 'uuid' },
+            RefType: { type: 'integer', example: 3530, description: '3530=chưa thu tiền (mặc định), 3531=tiền mặt, 3532=xuất khẩu' },
+            RefDate: { type: 'string', format: 'date', example: '2026-05-20' },
+            JournalMemo: { type: 'string', example: 'Bán hàng cho Công ty GHTK' },
+            TotalAmount: { type: 'number', example: 6527778, description: 'Tổng tiền bán hàng (= sum detail.Amount)' },
+            TotalSaleAmount: { type: 'number', example: 6527778, description: 'Tổng doanh thu (mặc định = TotalAmount)' },
+            TotalVATAmount: { type: 'number', example: 0, description: 'Tổng thuế GTGT' },
+            TotalDiscountAmount: { type: 'number', example: 0, description: 'Tổng chiết khấu' },
+            AccountObjectID: { type: 'string', format: 'uuid', description: 'ID khách hàng' },
             details: {
               type: 'array', items: {
-                type: 'object', properties: {
-                  DebitAccount: { type: 'string', example: '131' },
-                  CreditAccount: { type: 'string', example: '5111' },
-                  Amount: { type: 'number', example: 10000000 },
-                  Quantity: { type: 'number', example: 100 },
-                  UnitPrice: { type: 'number', example: 100000 },
-                  InventoryItemID: { type: 'string', format: 'uuid' },
-                  Description: { type: 'string', example: 'Sản phẩm A x100' },
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount','InventoryItemID','Quantity','UnitPrice'],
+                properties: {
+                  DebitAccount: { type: 'string', example: '131', description: 'TK Nợ (131=phải thu KH)' },
+                  CreditAccount: { type: 'string', example: '51115', description: 'TK Có (5111x=doanh thu)' },
+                  Amount: { type: 'number', example: 6527778 },
+                  InventoryItemID: { type: 'string', format: 'uuid', description: 'ID hàng hóa' },
+                  StockID: { type: 'string', format: 'uuid', description: 'ID kho xuất' },
+                  UnitID: { type: 'string', format: 'uuid', description: 'ID đơn vị tính' },
+                  Quantity: { type: 'number', example: 50 },
+                  UnitPrice: { type: 'number', example: 130555.55 },
+                  SaleQuantity: { type: 'number', example: 50, description: 'SL bán (mặc định = Quantity)' },
+                  SaleAmount: { type: 'number', example: 6527778, description: 'Tiền bán (mặc định = Amount)' },
+                  SaleAmountOC: { type: 'number', example: 6527778 },
+                  Description: { type: 'string', example: 'POLO ÁO SẴN PRIME COTTON 03' },
                   VATRate: { type: 'number', example: 10 },
-                  VATAmount: { type: 'number', example: 1000000 },
+                  VATAmount: { type: 'number', example: 0 },
                   VATAccount: { type: 'string', example: '33311' },
+                  DiscountAccount: { type: 'string', example: '52113' },
                 },
               },
             },
@@ -281,20 +469,62 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
         PUVoucherCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Mua hàng.** RefType mặc định: 302 (mua hàng TN nhập kho chưa TT).
+
+Sub-types phổ biến:
+- 302 = Mua hàng TN nhập kho chưa thanh toán
+- 312 = Mua hàng TN không qua kho chưa TT
+- 318 = Mua hàng nhập khẩu nhập kho chưa TT
+- 307 = Mua hàng nhập kho + trả tiền mặt
+- 308 = Mua hàng nhập kho + UNC
+
+**Ví dụ mua hàng nhập kho:**
+\`\`\`json
+{
+  "JournalMemo": "Mua dịch vụ gia công",
+  "TotalAmount": 340000,
+  "AccountObjectID": "B5C8EF7D-4476-47B9-B7D4-42CB9BD87C2C",
+  "details": [{
+    "DebitAccount": "62773", "CreditAccount": "331",
+    "Amount": 340000,
+    "InventoryItemID": "72817271-ADFB-4618-A4AA-4F84C663072F",
+    "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24",
+    "UnitID": "71112249-98CE-4334-A06D-34736155FA35",
+    "Quantity": 17, "UnitPrice": 20000,
+    "PurchaseQuantity": 17, "PurchaseAmount": 340000, "PurchaseAmountOC": 340000,
+    "Description": "407240-TT"
+  }]
+}
+\`\`\`
+
+**Lưu ý:** API tự insert PurchaseLedger (per detail line) + GeneralLedger + CustomFieldLedger.`,
           properties: {
-            RefDate: { type: 'string', format: 'date', example: '2026-01-20' },
-            JournalMemo: { type: 'string', example: 'Mua NVL từ NCC Hồng Hà' },
-            TotalAmount: { type: 'number', example: 8000000 },
-            AccountObjectName: { type: 'string', example: 'Công ty TNHH Hồng Hà' },
+            RefType: { type: 'integer', example: 302, description: '302=nhập kho chưa TT (mặc định), 312=ko kho chưa TT, 318=NK nhập kho, 307=nhập kho+TM, 308=nhập kho+UNC' },
+            RefDate: { type: 'string', format: 'date', example: '2026-05-20' },
+            JournalMemo: { type: 'string', example: 'Mua dịch vụ gia công' },
+            TotalAmount: { type: 'number', example: 340000 },
+            AccountObjectID: { type: 'string', format: 'uuid', description: 'ID nhà cung cấp' },
+            IncludeInvoice: { type: 'integer', default: 0, description: '0=chưa có HĐ, 1=có HĐ kèm theo' },
             details: {
               type: 'array', items: {
-                type: 'object', properties: {
-                  DebitAccount: { type: 'string', example: '152' },
-                  CreditAccount: { type: 'string', example: '331' },
-                  Amount: { type: 'number', example: 8000000 },
-                  Quantity: { type: 'number', example: 200 },
-                  UnitPrice: { type: 'number', example: 40000 },
-                  Description: { type: 'string', example: 'Xi măng x200 bao' },
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount'],
+                properties: {
+                  DebitAccount: { type: 'string', example: '1561', description: 'TK Nợ (1561=hàng hóa, 152=NVL, 627=CPSX)' },
+                  CreditAccount: { type: 'string', example: '331', description: 'TK Có (331=phải trả NCC)' },
+                  Amount: { type: 'number', example: 340000 },
+                  InventoryItemID: { type: 'string', format: 'uuid', description: 'ID hàng hóa' },
+                  StockID: { type: 'string', format: 'uuid', description: 'ID kho nhập' },
+                  UnitID: { type: 'string', format: 'uuid', description: 'ID đơn vị tính' },
+                  Quantity: { type: 'number', example: 17 },
+                  UnitPrice: { type: 'number', example: 20000 },
+                  PurchaseQuantity: { type: 'number', example: 17, description: 'SL mua (mặc định = Quantity)' },
+                  PurchaseAmount: { type: 'number', example: 340000, description: 'Tiền mua (mặc định = Amount)' },
+                  PurchaseAmountOC: { type: 'number', example: 340000 },
+                  Description: { type: 'string', example: 'NVL xi măng x17 bao' },
+                  InvNo: { type: 'string', description: 'Số hóa đơn mua' },
+                  InvDate: { type: 'string', format: 'date', description: 'Ngày hóa đơn' },
+                  JobID: { type: 'string', format: 'uuid', description: 'Đối tượng THCP' },
+                  ExpenseItemID: { type: 'string', format: 'uuid', description: 'Khoản mục CP' },
                 },
               },
             },
@@ -366,20 +596,48 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
         // ── Inventory Inward (Nhập kho) ──
         INInwardCreate: {
           type: 'object',
-          required: ['details'],
+          required: ['TotalAmount', 'details'],
+          description: `**Nhập kho.** RefType mặc định: 2014 (nhập kho khác).
+
+Sub-types: 2010=NK thành phẩm SX, 2012=NK tháo dỡ, 2013=NK từ hàng bán trả lại, 2014=NK khác.
+
+**Ví dụ nhập kho:**
+\`\`\`json
+{
+  "JournalMemo": "Nhập kho NVL từ NCC ABC",
+  "TotalAmount": 200000,
+  "AccountObjectID": "3A848988-EDFE-4726-AA93-D13D5EC958FB",
+  "details": [{
+    "DebitAccount": "1561", "CreditAccount": "331",
+    "Amount": 200000,
+    "InventoryItemID": "0599D9EA-49FB-4441-8B9B-5AC17ED9AED9",
+    "StockID": "0D83E65A-D5E3-4E2F-8FC9-B01B5B738D24",
+    "UnitID": "3A3D4460-F54B-46B5-A26A-CD416A020FA7",
+    "Quantity": 10, "UnitPrice": 20000
+  }]
+}
+\`\`\`
+
+**Xuất kho** dùng \`POST /inventory/outwards\`, RefType mặc định 2020 (XK bán hàng).
+Sub-types: 2022=XK khác, 2023=XK sản xuất, 2021=XK cho chi nhánh.`,
           properties: {
+            RefType: { type: 'integer', example: 2014, description: '2014=NK khác (mặc định), 2010=NK TP SX, 2013=NK trả lại' },
             RefDate: { type: 'string', format: 'date' },
             JournalMemo: { type: 'string', example: 'Nhập kho NVL từ NCC' },
-            TotalAmountFinance: { type: 'number', example: 5000000 },
+            TotalAmount: { type: 'number', example: 200000 },
+            AccountObjectID: { type: 'string', format: 'uuid' },
             details: {
               type: 'array', items: {
-                type: 'object', properties: {
-                  DebitAccount: { type: 'string', example: '152', description: 'NVL' },
-                  CreditAccount: { type: 'string', example: '331', description: 'Phải trả NCC' },
-                  Amount: { type: 'number', example: 5000000 },
-                  Quantity: { type: 'number', example: 100 },
-                  UnitPrice: { type: 'number', example: 50000 },
-                  InventoryItemID: { type: 'string', format: 'uuid' },
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount','InventoryItemID','Quantity','UnitPrice'],
+                properties: {
+                  DebitAccount: { type: 'string', example: '1561', description: '1561=hàng hóa, 152=NVL, 155=TP' },
+                  CreditAccount: { type: 'string', example: '331', description: '331=phải trả NCC' },
+                  Amount: { type: 'number', example: 200000 },
+                  InventoryItemID: { type: 'string', format: 'uuid', description: 'BẮT BUỘC cho kho. ID hàng hóa' },
+                  StockID: { type: 'string', format: 'uuid', description: 'ID kho nhập' },
+                  UnitID: { type: 'string', format: 'uuid', description: 'ID đơn vị tính' },
+                  Quantity: { type: 'number', example: 10 },
+                  UnitPrice: { type: 'number', example: 20000 },
                 },
               },
             },
@@ -390,16 +648,51 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
         GLVoucherCreate: {
           type: 'object',
           required: ['TotalAmount', 'details'],
+          description: `**Chứng từ nghiệp vụ khác.** Dùng cho các bút toán không thuộc CA/BA/SA/PU/IN.
+
+RefType mặc định: 4010. Sub-types: 4011=khấu trừ thuế, 4012=kết chuyển lãi lỗ, 4013=xử lý tỷ giá, 4014=bù trừ công nợ, 4015=quyết toán tạm ứng.
+
+**Ví dụ kết chuyển lãi lỗ:**
+\`\`\`json
+{
+  "RefType": 4012,
+  "JournalMemo": "Kết chuyển lãi lỗ Q1/2026",
+  "TotalAmount": 50000000,
+  "details": [{
+    "DebitAccount": "911", "CreditAccount": "4212",
+    "Amount": 50000000,
+    "Description": "Kết chuyển lãi Q1"
+  }]
+}
+\`\`\`
+
+**Ví dụ bù trừ công nợ:**
+\`\`\`json
+{
+  "RefType": 4014,
+  "JournalMemo": "Bù trừ CN Cty ABC",
+  "TotalAmount": 10000000,
+  "AccountObjectID": "...",
+  "details": [{
+    "DebitAccount": "331", "CreditAccount": "131",
+    "Amount": 10000000,
+    "Description": "Bù trừ CN phải thu/phải trả"
+  }]
+}
+\`\`\``,
           properties: {
+            RefType: { type: 'integer', example: 4010, description: '4010=NV khác, 4011=khấu trừ thuế, 4012=KC lãi lỗ, 4014=bù trừ CN' },
             RefDate: { type: 'string', format: 'date' },
             JournalMemo: { type: 'string', example: 'Kết chuyển lãi lỗ' },
-            TotalAmount: { type: 'number', example: 1000000 },
+            TotalAmount: { type: 'number', example: 50000000 },
+            AccountObjectID: { type: 'string', format: 'uuid', description: 'Đối tượng (cho bù trừ CN)' },
             details: {
               type: 'array', items: {
-                type: 'object', properties: {
+                type: 'object', required: ['DebitAccount','CreditAccount','Amount'],
+                properties: {
                   DebitAccount: { type: 'string', example: '911' },
                   CreditAccount: { type: 'string', example: '4212' },
-                  Amount: { type: 'number', example: 1000000 },
+                  Amount: { type: 'number', example: 50000000 },
                   Description: { type: 'string', example: 'Kết chuyển lãi' },
                 },
               },
@@ -554,8 +847,7 @@ Khi truyền \`AccountObjectID\`, API tự động fill:
       ...voucherCrud('/purchase/services', 'Mua hàng', 'mua dịch vụ', { bodySchema: 'PUVoucherCreate' }),
       '/purchase/invoices': { get: { tags: ['Mua hàng'], summary: 'Hóa đơn mua hàng', parameters: pagedDated, responses: ok } },
       '/purchase/invoices/{refId}': { get: { tags: ['Mua hàng'], summary: 'Chi tiết hóa đơn mua', parameters: [refIdParam], responses: ok } },
-      '/purchase/discounts': { get: { tags: ['Mua hàng'], summary: 'Giảm giá mua hàng', parameters: pagedDated, responses: ok } },
-      '/purchase/discounts/{refId}': { get: { tags: ['Mua hàng'], summary: 'Chi tiết giảm giá mua', parameters: [refIdParam], responses: ok } },
+      ...voucherCrud('/purchase/discounts', 'Mua hàng', 'giảm giá mua hàng', { bodySchema: 'PUVoucherCreate' }),
 
       // ── Inventory ──
       ...voucherCrud('/inventory/inwards', 'Kho', 'phiếu nhập kho', { bodySchema: 'INInwardCreate' }),

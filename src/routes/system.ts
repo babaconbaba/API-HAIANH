@@ -184,6 +184,7 @@ const ALLOWED_TABLES = new Set([
   // Ledger/log tables
   'GeneralLedger','InventoryLedger','FixedAssetLedger','SaleLedger','PurchaseLedger',
   'SupplyLedger','TaxLedger','AccountObjectLedger',
+  'CAReceiptPaymentList','BADepositWithdrawList','INInwardOutwardList','CustomFieldLedger',
   // Dictionary sub-tables
   'AccountObjectBankAccount','AccountObjectGroup','AccountObjectBelongToGroup',
   'InventoryItemDetailDiscount','InventoryItemDetailNorm','InventoryItemUnitConvert',
