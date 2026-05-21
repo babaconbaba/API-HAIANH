@@ -87,7 +87,7 @@ router.post('/gl-vouchers', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'GLVoucher', detailTable: 'GLVoucherDetail',
     refType: REF_TYPES.GL_VOUCHER, refTypeCategory: REF_TYPE_CATEGORY.GL_VOUCHER,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -110,7 +110,7 @@ router.post('/cash/receipts', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'CAReceipt', detailTable: 'CAReceiptDetail',
     refType: REF_TYPES.CA_RECEIPT, refTypeCategory: REF_TYPE_CATEGORY.CA_RECEIPT,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -133,7 +133,7 @@ router.post('/cash/payments', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'CAPayment', detailTable: 'CAPaymentDetail',
     refType: REF_TYPES.CA_PAYMENT, refTypeCategory: REF_TYPE_CATEGORY.CA_PAYMENT,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -156,7 +156,7 @@ router.post('/bank/deposits', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'BADeposit', detailTable: 'BADepositDetail',
     refType: REF_TYPES.BA_DEPOSIT, refTypeCategory: REF_TYPE_CATEGORY.BA_DEPOSIT,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -179,7 +179,7 @@ router.post('/bank/withdrawals', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'BAWithDraw', detailTable: 'BAWithDrawDetail',
     refType: REF_TYPES.BA_WITHDRAW, refTypeCategory: REF_TYPE_CATEGORY.BA_WITHDRAW,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -217,7 +217,7 @@ router.post('/bank/internal-transfers', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'BAInternalTransfer', detailTable: 'BAInternalTransferDetail',
     refType: REF_TYPES.BA_INTERNAL_TRANSFER, refTypeCategory: REF_TYPE_CATEGORY.BA_INTERNAL_TRANSFER,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -240,7 +240,7 @@ router.post('/gl-vouchers', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'GLVoucher', detailTable: 'GLVoucherDetail',
     refType: REF_TYPES.GL_VOUCHER, refTypeCategory: REF_TYPE_CATEGORY.GL_VOUCHER,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));

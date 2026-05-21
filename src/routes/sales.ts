@@ -27,7 +27,7 @@ router.post('/vouchers', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'SAVoucher', detailTable: 'SAVoucherDetail',
     refType: REF_TYPES.SA_VOUCHER, refTypeCategory: REF_TYPE_CATEGORY.SA_VOUCHER,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -75,7 +75,7 @@ router.post('/returns', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'SAReturn', detailTable: 'SAReturnDetail',
     refType: REF_TYPES.SA_RETURN, refTypeCategory: REF_TYPE_CATEGORY.SA_RETURN,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -164,7 +164,7 @@ router.post('/discounts', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'SADiscount', detailTable: 'SADiscountDetail',
     refType: REF_TYPES.SA_DISCOUNT, refTypeCategory: REF_TYPE_CATEGORY.SA_DISCOUNT,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));

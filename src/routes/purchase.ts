@@ -27,7 +27,7 @@ router.post('/vouchers', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'PUVoucher', detailTable: 'PUVoucherDetail',
     refType: REF_TYPES.PU_VOUCHER, refTypeCategory: REF_TYPE_CATEGORY.PU_VOUCHER,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -79,7 +79,7 @@ router.post('/returns', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'PUReturn', detailTable: 'PUReturnDetail',
     refType: REF_TYPES.PU_RETURN, refTypeCategory: REF_TYPE_CATEGORY.PU_RETURN,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -106,7 +106,7 @@ router.post('/services', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'PUService', detailTable: 'PUServiceDetail',
     refType: REF_TYPES.PU_SERVICE, refTypeCategory: REF_TYPE_CATEGORY.PU_SERVICE,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -160,7 +160,7 @@ router.post('/discounts', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'PUDiscount', detailTable: 'PUDiscountDetail',
     refType: REF_TYPES.PU_DISCOUNT, refTypeCategory: REF_TYPE_CATEGORY.PU_DISCOUNT,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));

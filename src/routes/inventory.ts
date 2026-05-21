@@ -26,7 +26,7 @@ router.post('/inwards', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'INInward', detailTable: 'INInwardDetail',
     refType: REF_TYPES.IN_INWARD, refTypeCategory: REF_TYPE_CATEGORY.IN_INWARD,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -49,7 +49,7 @@ router.post('/outwards', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'INOutward', detailTable: 'INOutwardDetail',
     refType: REF_TYPES.IN_OUTWARD, refTypeCategory: REF_TYPE_CATEGORY.IN_OUTWARD,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -72,7 +72,7 @@ router.post('/transfers', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'INTransfer', detailTable: 'INTransferDetail',
     refType: REF_TYPES.IN_TRANSFER, refTypeCategory: REF_TYPE_CATEGORY.IN_TRANSFER,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));

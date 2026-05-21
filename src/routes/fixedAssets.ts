@@ -175,7 +175,7 @@ router.post('/depreciation', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'FADepreciation', detailTable: 'FADepreciationDetail',
     refType: REF_TYPES.FA_DEPRECIATION, refTypeCategory: REF_TYPE_CATEGORY.FA_DEPRECIATION,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
@@ -329,7 +329,7 @@ router.post('/allocations', asyncHandler(async (req, res) => {
   const result = await createVoucher(req, {
     masterTable: 'SUAllocation', detailTable: 'SUAllocationDetailTable',
     refType: REF_TYPES.SU_ALLOCATION, refTypeCategory: REF_TYPE_CATEGORY.SU_ALLOCATION,
-    postToGL: true,
+    postToGL: false,
   });
   res.status(201).json({ success: true, data: result });
 }));
