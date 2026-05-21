@@ -91,6 +91,9 @@ async function _createVoucherInner(
       branchId = r.recordset[0]?.OrganizationUnitID;
     }
 
+    // PostToGL: default from route config, override with body.PostToGL
+    const postToGL = b.PostToGL !== undefined ? !!b.PostToGL : config.postToGL;
+
     // Use user's RefType to determine correct auto-numbering category
     const actualRefType = b.RefType || config.refType;
     const autoNumCategory = REFTYPE_TO_CATEGORY[actualRefType] || config.refTypeCategory;
@@ -156,7 +159,7 @@ async function _createVoucherInner(
       RefNoManagement: (b.DisplayOnBook === 1 || b.DisplayOnBook === 2) ? refNo : undefined,
       InvNo: b.InvNo || ((isSA || isIN) ? undefined : refNo),
       BranchID: branchId,
-      IsPostedFinance: config.postToGL ? true : false,
+      IsPostedFinance: postToGL,
       IsPostedManagement: false,
       DisplayOnBook: b.DisplayOnBook ?? 0,
       RefOrder: b.RefOrder || Date.now() % 1000000,
@@ -259,7 +262,7 @@ async function _createVoucherInner(
         }, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
       } catch (e: any) { console.warn('[WARN] CustomFieldLedger:', e.message?.substring(0, 80)); }
 
-      if (config.postToGL && (d.DebitAccount || d.CreditAccount)) {
+      if (postToGL && (d.DebitAccount || d.CreditAccount)) {
         glEntries.push({
           refDetailId: detailId,
           debitAccount: d.DebitAccount || '',
@@ -291,7 +294,7 @@ async function _createVoucherInner(
     }
 
     // Post to General Ledger
-    if (config.postToGL && glEntries.length > 0) {
+    if (postToGL && glEntries.length > 0) {
       const glHeader: GLHeader = {
         refId,
         refType: b.RefType || config.refType,
@@ -378,7 +381,7 @@ async function _createVoucherInner(
           // ====== Header-level list tables (CA, BA, IN) ======
           const listData = buildHeaderListData(lt, config, {
             refId, refDate, postedDate, refType, refNo, branchId, refTypeName,
-            body: b, masterData, username: req.user?.username || 'api',
+            body: b, masterData, username: req.user?.username || 'api', postToGL,
           });
           await insertRow(transaction, lt, listData, req.sqlInstance, req.sqlDatabase, sqlCreds.auth, sqlCreds.username, sqlCreds.password);
         }
@@ -402,7 +405,7 @@ function buildHeaderListData(
   ctx: {
     refId: string; refDate: Date; postedDate: Date; refType: number;
     refNo: string; branchId: string; refTypeName?: string;
-    body: any; masterData: any; username: string;
+    body: any; masterData: any; username: string; postToGL: boolean;
   }
 ): Record<string, any> {
   const b = ctx.body;
@@ -415,7 +418,7 @@ function buildHeaderListData(
     PostedDate: ctx.postedDate,
     RefType: ctx.refType,
     RefNoFinance: ctx.refNo,
-    IsPostedFinance: config.postToGL ? true : false,
+    IsPostedFinance: ctx.postToGL,
     IsPostedManagement: false,
     ReasonTypeID: b.ReasonTypeID ?? undefined,
     AccountObjectID: b.AccountObjectID || undefined,
